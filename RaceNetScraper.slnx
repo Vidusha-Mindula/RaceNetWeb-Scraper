@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RaceNetScraper.App/RaceNetScraper.App.csproj" />
+    <Project Path="src/RaceNetScraper.Core/RaceNetScraper.Core.csproj" />
+    <Project Path="src/RaceNetScraper.Shared/RaceNetScraper.Shared.csproj" />
+  </Folder>
+</Solution>

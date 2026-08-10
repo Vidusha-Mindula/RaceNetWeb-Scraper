@@ -1,0 +1,106 @@
+{
+  "data": {
+    "meetingsGrouped": [
+      {
+        "group": "Australia",
+        "meetings": [
+          {
+            "id": "445587",
+            "name": "The Meadows",
+            "slug": "the-meadows-20260725",
+            "railPosition": null,
+            "timeGroup": "Night",
+            "meetingDateUtc": "2026-07-25",
+            "meetingDateLocal": "2026-07-25",
+            "regionId": "75",
+            "__typename": "Meeting",
+            "sportId": "21",
+            "penetrometer": null,
+            "trackComments": "N/A",
+            "tabStatus": true,
+            "meetingCategory": "Professional",
+            "meetingStage": "FinalFields",
+            "meetingType": "Metro",
+            "totalPrizeMoney": 285520,
+            "state": "VIC",
+            "venue": {
+              "id": "2354",
+              "name": "The Meadows",
+              "nameAbbrev": "MEA",
+              "slug": "the-meadows",
+              "state": "VIC",
+              "__typename": "Venue",
+              "isMetro": true,
+              "address": "80 Northcorp Blvd, Broadmeadows VIC 3047",
+              "weatherLastUpdated": "2026-07-24T19:02:17.000Z",
+              "country": {
+                "id": "16",
+                "name": "Australia",
+                "iso2": "AU",
+                "iso3": "AUS",
+                "horseCountry": "AUS",
+                "__typename": "Country"
+              }
+            },
+            "events": [
+              {
+                "id": "3388319",
+                "racenetId": null,
+                "slug": "gorski-truck-and-trailer-race-1",
+                "name": "Gorski Truck And Trailer",
+                "nameNews": "Gorski Truck And Trailer",
+                "eventNumber": 1,
+                "status": "open",
+                "startTime": "2026-07-25T08:29:00.000Z",
+                "endTime": null,
+                "trackType": null,
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 525,
+                "eventClass": "Mixed 6/7",
+                "groupType": "B",
+                "trackCondition": {
+                  "eventId": "3388319",
+                  "overall": null,
+                  "rating": null,
+                  "surface": null,
+                  "__typename": "TrackCondition"
+                }
+              },
+              {
+                "id": "3388318",
+                "racenetId": null,
+                "slug": "sportsbet-final-race-2",
+                "name": "Sportsbet Final",
+                "nameNews": "Sportsbet Final",
+                "eventNumber": 2,
+                "status": "open",
+                "startTime": "2026-07-25T08:50:00.000Z",
+                "endTime": null,
+                "trackType": null,
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 525,
+                "eventClass": "Mixed 6/7 Final",
+                "groupType": "B",
+                "trackCondition": {
+                  "eventId": "3388318",
+                  "overall": null,
+                  "rating": null,
+                  "surface": null,
+                  "__typename": "TrackCondition"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

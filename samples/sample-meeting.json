@@ -1,0 +1,136 @@
+{
+  "data": {
+    "meetingsGrouped": [
+      {
+        "group": "Australia",
+        "meetings": [
+          {
+            "id": "scraper-horses-ipswich-20260725",
+            "name": "Ipswich",
+            "meetingDateUtc": "2026-07-25",
+            "meetingDateLocal": "2026-07-25",
+            "meetingType": "Morning",
+            "meetingCategory": "Provincial",
+            "meetingStage": "Final",
+            "isFuture": true,
+            "tabStatus": true,
+            "state": "QLD",
+            "slug": "ipswich",
+            "trackComments": "Rail: +9m from 1600m - 1200m, 10m Remainder",
+            "penetrometer": 4.8,
+            "railPosition": "+9m from 1600m - 1200m, 10m Remainder",
+            "isAbandoned": false,
+            "showSpeedMaps": true,
+            "showSectionals": true,
+            "showOdds": true,
+            "venue": {
+              "id": "venue-ipswich",
+              "name": "Ipswich",
+              "state": "QLD",
+              "slug": "ipswich",
+              "nameAbbrev": "IPS",
+              "isMetro": false,
+              "isClockWise": true,
+              "trackMapUrl": "https://cdn.example.com/track-maps/ipswich.png",
+              "straight": 350,
+              "straightUnit": "m",
+              "circumference": 1800,
+              "circumferenceUnit": "m",
+              "address": "Brisbane St, Ipswich QLD 4305",
+              "weatherLastUpdated": "2026-07-25T00:00:00.000Z",
+              "country": {
+                "id": "country-au",
+                "iso2": "AU",
+                "iso3": "AUS",
+                "name": "Australia",
+                "horseCountry": "AUS"
+              }
+            },
+            "events": [
+              {
+                "id": "scraper-horses-ipswich-20260725-r1",
+                "meetingId": "scraper-horses-ipswich-20260725",
+                "slug": "race-1",
+                "name": "Cruice Creations Maiden Handicap",
+                "startTime": "2026-07-25T02:11:00.000Z",
+                "eventNumber": 1,
+                "eventClass": "Maiden. Handicap. No age restriction. No sex restriction. General Handicap",
+                "status": "open",
+                "distance": 1950,
+                "starters": 12,
+                "isResulted": false,
+                "isAbandoned": false,
+                "racePrizeMoney": 30000,
+                "trackCondition": {
+                  "overall": "Good",
+                  "rating": "4",
+                  "surface": "Turf"
+                },
+                "weather": {
+                  "condition": "Fine",
+                  "temperature": "21°C",
+                  "wind": "E at 18kph",
+                  "humidity": "40%"
+                },
+                "entryConditions": [
+                  { "type": "class", "description": "Maiden" },
+                  { "type": "type", "description": "Handicap" },
+                  { "type": "class", "description": "No age restriction" },
+                  { "type": "sexRestriction", "description": "No sex restriction" },
+                  { "type": "class", "description": "General Handicap" }
+                ],
+                "prizeMoney": [
+                  { "position": "1", "value": 16800 },
+                  { "position": "2", "value": 5300 },
+                  { "position": "3", "value": 2800 },
+                  { "position": "4", "value": 1600 },
+                  { "position": "5", "value": 1000 }
+                ]
+              },
+              {
+                "id": "scraper-horses-ipswich-20260725-r2",
+                "meetingId": "scraper-horses-ipswich-20260725",
+                "slug": "race-2",
+                "name": "Gordon's Gin Qtis Three-year-old Maiden Plate",
+                "startTime": "2026-07-25T02:46:00.000Z",
+                "eventNumber": 2,
+                "eventClass": "Maiden. Set Weights. Three-Years-Old. No sex restriction. Maiden Set Weights or WFA flat",
+                "status": "open",
+                "distance": 800,
+                "starters": 10,
+                "isResulted": false,
+                "isAbandoned": false,
+                "racePrizeMoney": 30000,
+                "trackCondition": {
+                  "overall": "Good",
+                  "rating": "4",
+                  "surface": "Turf"
+                },
+                "weather": {
+                  "condition": "Fine",
+                  "temperature": "21°C",
+                  "wind": "E at 18kph",
+                  "humidity": "40%"
+                },
+                "entryConditions": [
+                  { "type": "class", "description": "Maiden" },
+                  { "type": "type", "description": "Set Weights" },
+                  { "type": "ageBand", "description": "Three-Years-Old" },
+                  { "type": "sexRestriction", "description": "No sex restriction" },
+                  { "type": "class", "description": "Maiden Set Weights or WFA flat" }
+                ],
+                "prizeMoney": [
+                  { "position": "1", "value": 16800 },
+                  { "position": "2", "value": 5300 },
+                  { "position": "3", "value": 2800 },
+                  { "position": "4", "value": 1600 },
+                  { "position": "5", "value": 1000 }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "data": {
+    "meetingsGrouped": [
+      {
+        "group": "Australia",
+        "meetings": [
+          {
+            "id": "445725",
+            "name": "Belmont",
+            "slug": "belmont-20260725",
+            "railPosition": "True",
+            "timeGroup": "Day",
+            "meetingDateUtc": "2026-07-25",
+            "meetingDateLocal": "2026-07-25",
+            "regionId": "1",
+            "__typename": "Meeting",
+            "sportId": "1",
+            "penetrometer": 0,
+            "trackComments": "Updated 24/7 - 9:00am",
+            "tabStatus": true,
+            "meetingCategory": "Professional",
+            "meetingStage": "FinalFields",
+            "meetingType": "Metro",
+            "totalPrizeMoney": 625000,
+            "state": "WA",
+            "venue": {
+              "id": "21",
+              "name": "Belmont",
+              "nameAbbrev": "BLMT",
+              "slug": "belmont",
+              "state": "WA",
+              "__typename": "Venue",
+              "isMetro": true,
+              "address": "Goodwood Parade, Burswood, 6100",
+              "weatherLastUpdated": "2026-07-24T18:03:53.000Z",
+              "country": {
+                "id": "16",
+                "name": "Australia",
+                "iso2": "AU",
+                "iso3": "AUS",
+                "horseCountry": "AUS",
+                "__typename": "Country"
+              }
+            },
+            "events": [
+              {
+                "id": "3389509",
+                "racenetId": null,
+                "slug": "drummond-golf-plate-race-1",
+                "name": "Drummond Golf Plate",
+                "nameNews": "Drummond Golf Plate",
+                "eventNumber": 1,
+                "status": "open",
+                "startTime": "2026-07-25T04:18:00.000Z",
+                "endTime": "2026-07-25T05:18:00.000Z",
+                "trackType": "Turf",
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 1000,
+                "eventClass": "2-Y-O, SW + P",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3389509",
+                  "overall": "Soft",
+                  "rating": "5",
+                  "surface": "Turf",
+                  "__typename": "TrackCondition"
+                }
+              },
+              {
+                "id": "3389511",
+                "racenetId": null,
+                "slug": "tabtouch-westspeed-platinum-handicap-race-2",
+                "name": "Tabtouch - Westspeed Platinum Handicap",
+                "nameNews": "Tabtouch - Westspeed Platinum Handicap",
+                "eventNumber": 2,
+                "status": "open",
+                "startTime": "2026-07-25T04:58:00.000Z",
+                "endTime": "2026-07-25T05:58:00.000Z",
+                "trackType": "Turf",
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 1600,
+                "eventClass": "4-Y-O & Up, No Metro Wins-Last Year, Handicap",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3389511",
+                  "overall": "Soft",
+                  "rating": "5",
+                  "surface": "Turf",
+                  "__typename": "TrackCondition"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "group": "International",
+        "meetings": [
+          {
+            "id": "445849",
+            "name": "Ascot",
+            "slug": "ascot-uk-20260724",
+            "railPosition": null,
+            "timeGroup": "Night",
+            "meetingDateUtc": "2026-07-24",
+            "meetingDateLocal": "2026-07-24",
+            "regionId": "26",
+            "__typename": "Meeting",
+            "sportId": "1",
+            "penetrometer": null,
+            "trackComments": "N/A",
+            "tabStatus": null,
+            "meetingCategory": "Professional",
+            "meetingStage": "Results",
+            "meetingType": null,
+            "totalPrizeMoney": 406282.09,
+            "state": "UK",
+            "venue": {
+              "id": "171",
+              "name": "Ascot",
+              "nameAbbrev": "ROY",
+              "slug": "ascot-gbr",
+              "state": "UK",
+              "__typename": "Venue",
+              "isMetro": false,
+              "address": "High St Ascot, West Berkshire, SL5 7HP",
+              "weatherLastUpdated": "2026-07-24T18:03:56.000Z",
+              "country": {
+                "id": "79",
+                "name": "United Kingdom",
+                "iso2": "GB",
+                "iso3": "GBR",
+                "horseCountry": "UK",
+                "__typename": "Country"
+              }
+            },
+            "events": [
+              {
+                "id": "3390540",
+                "racenetId": null,
+                "slug": "sports4causes-october-club-ebf-fillies-novice-stakes-gbb-race-race-1",
+                "name": "Sports4causes October Club Ebf Fillies' Novice Stakes (Gbb Race)",
+                "nameNews": "Sports4causes October Club Ebf Fillies' Novice Stakes (Gbb Race)",
+                "eventNumber": 1,
+                "status": "closed",
+                "startTime": "2026-07-24T13:20:00.000Z",
+                "endTime": "2026-07-24T14:20:00.000Z",
+                "trackType": "Turf",
+                "__typename": "Event",
+                "isResulted": true,
+                "resultState": "resulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 1207,
+                "eventClass": "2YO, Fillies, Class 3, Class 3, Novice",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3390540",
+                  "overall": "Good",
+                  "rating": null,
+                  "surface": "Turf",
+                  "__typename": "TrackCondition"
+                }
+              },
+              {
+                "id": "3390541",
+                "racenetId": null,
+                "slug": "flexjet-pat-eddery-stakes-listed-race-2",
+                "name": "Flexjet Pat Eddery Stakes (Listed)",
+                "nameNews": "Flexjet Pat Eddery Stakes (Listed)",
+                "eventNumber": 2,
+                "status": "closed",
+                "startTime": "2026-07-24T13:55:00.000Z",
+                "endTime": "2026-07-24T14:55:00.000Z",
+                "trackType": "Turf",
+                "__typename": "Event",
+                "isResulted": true,
+                "resultState": "resulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 1408,
+                "eventClass": "2YO, Class 1, Class 1",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3390541",
+                  "overall": "Good",
+                  "rating": null,
+                  "surface": "Turf",
+                  "__typename": "TrackCondition"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

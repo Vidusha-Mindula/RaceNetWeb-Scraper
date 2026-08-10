@@ -1,0 +1,206 @@
+{
+  "data": {
+    "meetingsGrouped": [
+      {
+        "group": "Australia",
+        "meetings": [
+          {
+            "id": "445630",
+            "name": "Albion Park",
+            "slug": "albion-park-20260725",
+            "railPosition": null,
+            "timeGroup": "Night",
+            "meetingDateUtc": "2026-07-25",
+            "meetingDateLocal": "2026-07-25",
+            "regionId": "76",
+            "__typename": "Meeting",
+            "sportId": "22",
+            "penetrometer": null,
+            "trackComments": "N/A",
+            "tabStatus": true,
+            "meetingCategory": "Professional",
+            "meetingStage": "FinalFields",
+            "meetingType": "M-CLASS",
+            "totalPrizeMoney": 144648,
+            "state": "QLD",
+            "venue": {
+              "id": "2438",
+              "name": "Albion Park",
+              "nameAbbrev": "ALBION PARK",
+              "slug": "albion-park-australia",
+              "state": "QLD",
+              "__typename": "Venue",
+              "isMetro": false,
+              "address": "Albion Park Paceway, Yulestar Street, Breakfast Creek, QLD, AUSTRALIA, 4010",
+              "weatherLastUpdated": "2026-07-24T19:02:16.000Z",
+              "country": {
+                "id": "16",
+                "name": "Australia",
+                "iso2": "AU",
+                "iso3": "AUS",
+                "horseCountry": "AUS",
+                "__typename": "Country"
+              }
+            },
+            "events": [
+              {
+                "id": "3388738",
+                "racenetId": null,
+                "slug": "racing-sports-com-band-5-pace-race-1",
+                "name": "Racing & Sports. Com Band 5 Pace",
+                "nameNews": "Racing & Sports. Com Band 5 Pace",
+                "eventNumber": 1,
+                "status": "open",
+                "startTime": "2026-07-25T07:17:00.000Z",
+                "endTime": null,
+                "trackType": null,
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 1660,
+                "eventClass": "",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3388738",
+                  "overall": null,
+                  "rating": null,
+                  "surface": null,
+                  "__typename": "TrackCondition"
+                }
+              },
+              {
+                "id": "3388739",
+                "racenetId": null,
+                "slug": "wolf-signs-qualifying-pace-b-div-race-2",
+                "name": "Wolf Signs Qualifying Pace (B Div)",
+                "nameNews": "Wolf Signs Qualifying Pace (B Div)",
+                "eventNumber": 2,
+                "status": "open",
+                "startTime": "2026-07-25T07:42:00.000Z",
+                "endTime": null,
+                "trackType": null,
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 2138,
+                "eventClass": "",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3388739",
+                  "overall": null,
+                  "rating": null,
+                  "surface": null,
+                  "__typename": "TrackCondition"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "group": "International",
+        "meetings": [
+          {
+            "id": "445815",
+            "name": "Yonkers Harness",
+            "slug": "yonkers-harness-us-20260725",
+            "railPosition": null,
+            "timeGroup": "Night",
+            "meetingDateUtc": "2026-07-25",
+            "meetingDateLocal": "2026-07-25",
+            "regionId": "652",
+            "__typename": "Meeting",
+            "sportId": "22",
+            "penetrometer": null,
+            "trackComments": "N/A",
+            "tabStatus": null,
+            "meetingCategory": "Professional",
+            "meetingStage": "FinalFields",
+            "meetingType": null,
+            "totalPrizeMoney": 316260.97,
+            "state": "US",
+            "venue": {
+              "id": "2582",
+              "name": "Yonkers Harness",
+              "nameAbbrev": "YRX",
+              "slug": "yonkers-harness-united-states",
+              "state": "US",
+              "__typename": "Venue",
+              "isMetro": true,
+              "address": "810 Yonkers Ave, Yonkers, NY 10704, United States",
+              "weatherLastUpdated": "2026-07-24T19:02:12.000Z",
+              "country": {
+                "id": "232",
+                "name": "United States",
+                "iso2": "US",
+                "iso3": "USA",
+                "horseCountry": "USA",
+                "__typename": "Country"
+              }
+            },
+            "events": [
+              {
+                "id": "3390277",
+                "racenetId": null,
+                "slug": "race-1-race-1",
+                "name": "Race 1",
+                "nameNews": "Race 1",
+                "eventNumber": 1,
+                "status": "open",
+                "startTime": "2026-07-24T22:45:00.000Z",
+                "endTime": "2026-07-24T23:45:00.000Z",
+                "trackType": "Dirt",
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 1609,
+                "eventClass": "",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3390277",
+                  "overall": null,
+                  "rating": null,
+                  "surface": "Dirt",
+                  "__typename": "TrackCondition"
+                }
+              },
+              {
+                "id": "3390278",
+                "racenetId": null,
+                "slug": "race-2-race-2",
+                "name": "Race 2",
+                "nameNews": "Race 2",
+                "eventNumber": 2,
+                "status": "open",
+                "startTime": "2026-07-24T23:05:00.000Z",
+                "endTime": "2026-07-25T00:05:00.000Z",
+                "trackType": "Dirt",
+                "__typename": "Event",
+                "isResulted": false,
+                "resultState": "unresulted",
+                "isAbandoned": false,
+                "placeWinners": 3,
+                "distance": 1609,
+                "eventClass": "",
+                "groupType": null,
+                "trackCondition": {
+                  "eventId": "3390278",
+                  "overall": null,
+                  "rating": null,
+                  "surface": "Dirt",
+                  "__typename": "TrackCondition"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

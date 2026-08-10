@@ -1,0 +1,211 @@
+<Window x:Class="RaceNetScraper.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RaceNetScraper.App"
+        xmlns:vm="clr-namespace:RaceNetScraper.App.ViewModels"
+        xmlns:components="clr-namespace:RaceNetScraper.App.Components"
+        mc:Ignorable="d"
+        Title="Racenet Meetings Scraper  ·  by VM" Height="700" Width="1080"
+        MinHeight="540" MinWidth="880"
+        Icon="app.ico"
+        Background="{StaticResource BgBrush}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="8" Height="28" CornerRadius="4" Background="{StaticResource AccentBrush}" Margin="0,0,10,0" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Racenet Meetings Scraper" FontSize="19" FontWeight="Bold" />
+                    <TextBlock Text="Horses · Greyhounds · Harness — meetings and full race detail" FontSize="11.5"
+                               Foreground="{StaticResource SubtleTextBrush}" Margin="0,1,0,0" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Mascot's running track: the empty header space to the right of the title. It
+                 walks back and forth across this whole area continuously, and additionally comes
+                 alive (blinking/glowing/talking) whenever a scrape is running. -->
+            <Grid x:Name="MascotTrack" Grid.Column="1" Margin="24,0,0,0">
+                <components:ScraperBotIndicator HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                 IsActive="{Binding IsBusy}"
+                                                 TrackWidth="{Binding ActualWidth, ElementName=MascotTrack}" />
+            </Grid>
+        </Grid>
+
+        <!-- Update banner: hidden unless MainViewModel finds a newer GitHub release on startup -->
+        <Border Grid.Row="1" Background="{StaticResource PanelBrush}" CornerRadius="10"
+                BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="14,10" Margin="0,0,0,14"
+                Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding UpdateStatusText}" VerticalAlignment="Center"
+                           Foreground="{StaticResource AccentHoverBrush}" FontWeight="SemiBold" />
+                <Button Grid.Row="0" Grid.Column="1" Content="{Binding UpdateButtonText}" Width="150" Style="{StaticResource PrimaryButton}"
+                        Command="{Binding UpdateNowCommand}"
+                        ToolTip="Downloads the installer and installs it silently — no wizard clicks needed. This app closes automatically and reopens on its own once the update finishes." />
+
+                <!-- Only shown while the installer is actually downloading — a real percentage
+                     (or, if the server sent no Content-Length, a moving indeterminate sweep) so
+                     it's never ambiguous whether this is progressing or stuck. -->
+                <ProgressBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0"
+                             Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent, Mode=OneWay}"
+                             IsIndeterminate="{Binding IsUpdateDownloadIndeterminate}"
+                             Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+        </Border>
+
+        <!-- Developer Note banner: hidden unless a notice.json Id hasn't already been dismissed
+             (see AppSettings.LastSeenNoticeId). The only way to close it is the button below —
+             no X — so dismissing it means it was actually read, not misclicked away. -->
+        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" CornerRadius="10"
+                BorderBrush="#4FA8D8" BorderThickness="1" Padding="14,10" Margin="0,0,0,14"
+                Visibility="{Binding DeveloperNoticeVisible, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <TextBlock FontWeight="Bold" Foreground="#6CC2EE" Margin="0,0,0,6">
+                    <Run Text="📣 Developer Note" />
+                    <Run Text=" — " Foreground="{StaticResource SubtleTextBrush}" />
+                    <Run Text="{Binding DeveloperNoticeTitle, Mode=OneWay}" Foreground="{StaticResource TextBrush}" />
+                </TextBlock>
+                <TextBlock Text="{Binding DeveloperNoticeMessage, Mode=OneWay}" TextWrapping="Wrap"
+                           Foreground="{StaticResource TextBrush}" Margin="0,0,0,10" />
+                <Button Content="I've read this — Dismiss" Width="200" HorizontalAlignment="Left"
+                        Style="{StaticResource PrimaryButton}" Command="{Binding DismissDeveloperNoticeCommand}" />
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="3">
+            <TabItem Header="Scraper">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Controls card -->
+                    <Border Grid.Row="0" Background="{StaticResource PanelBrush}" CornerRadius="10"
+                            BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1" Padding="16,14" Margin="0,0,0,14">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12" VerticalAlignment="Center">
+                                <TextBlock Text="Date" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                                <DatePicker SelectedDate="{Binding SelectedDate}" Width="130" Margin="0,0,24,0"
+                                            CalendarStyle="{StaticResource DarkCalendarStyle}" />
+
+                                <CheckBox Content="Horses (T)" IsChecked="{Binding ScrapeHorses}" Margin="0,0,18,0" VerticalAlignment="Center" />
+                                <CheckBox Content="Greyhounds (G)" IsChecked="{Binding ScrapeGreyhounds}" Margin="0,0,18,0" VerticalAlignment="Center" />
+                                <CheckBox Content="Harness (H)" IsChecked="{Binding ScrapeHarness}" Margin="0,0,24,0" VerticalAlignment="Center" />
+
+                                <CheckBox Content="Headless" IsChecked="{Binding Headless}" VerticalAlignment="Center"
+                                          ToolTip="Unchecked (default) runs a real browser positioned off-screen, so it never appears yet still passes Racenet's bot-detection reliably. Checking this uses true headless mode instead, which is faster but may get blocked." />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12" VerticalAlignment="Center">
+                                <TextBlock Text="Country (ISO2)" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                                <TextBox Text="{Binding CountryCodeFilter, UpdateSourceTrigger=PropertyChanged}" Width="64" Margin="0,0,24,0"
+                                         ToolTip="Optional. Only scrape meetings in this country, e.g. AU, NZ, US, GB. Leave blank for all countries." />
+
+                                <TextBlock Text="Course name" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                                <TextBox Text="{Binding CourseNameFilter, UpdateSourceTrigger=PropertyChanged}" Width="170" Margin="0,0,24,0"
+                                         ToolTip="Optional. Only scrape meetings whose course/meeting name contains this text, e.g. Belmont. Leave blank for all courses." />
+
+                                <Button Content="Scrape" Width="110" Style="{StaticResource PrimaryButton}" Command="{Binding ScrapeCommand}" Margin="0,0,10,0"
+                                        ToolTip="Scrapes meetings AND every race's full runner/jockey/form detail for the selected discipline(s), date, and filters — one click, everything." />
+                                <Button Content="Stop" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding StopCommand}" Margin="0,0,10,0"
+                                        ToolTip="Cancels the running scrape as soon as the current in-flight request finishes." />
+                                <Button Content="Export JSON..." Width="140" Style="{StaticResource SecondaryButton}" Command="{Binding ExportJsonCommand}"
+                                        ToolTip="Saves one folder per meeting, each containing that meeting's file plus a DataDump file for every scraped race." />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Download folder" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                                <TextBox Text="{Binding DownloadFolder}" Width="340" IsReadOnly="True" Margin="0,0,8,0"
+                                         ToolTip="Default folder Export JSON opens to, and that auto-export (if enabled) writes to directly." />
+                                <Button Content="Browse..." Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding BrowseDownloadFolderCommand}" Margin="0,0,24,0" />
+
+                                <CheckBox Content="Auto-export JSON after scrape" IsChecked="{Binding AutoExportAfterScrape}" VerticalAlignment="Center" Margin="0,0,24,0"
+                                          ToolTip="When checked, a successful scrape immediately saves JSON to the download folder above — no prompt. Requires a download folder to be set." />
+
+                                <CheckBox Content="Also upload to S3 (pending)" IsChecked="{Binding UploadToS3}" VerticalAlignment="Center" Margin="0,0,10,0"
+                                          ToolTip="When checked, every exported file is also uploaded directly into the configured bucket's pending folder — flat, no per-meeting nesting there (local files keep their per-meeting folders as usual)." />
+
+                                <TextBlock Text="Bucket" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                                <TextBox Text="{Binding S3BucketName, UpdateSourceTrigger=PropertyChanged}" Width="180"
+                                         ToolTip="S3 bucket name to upload to. Remembered across app restarts. Access/secret keys are configured on the Bucket tab." />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Results -->
+                    <Border Grid.Row="1" Background="{StaticResource PanelBrush}" CornerRadius="10"
+                            BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1" Margin="0,0,0,14" ClipToBounds="True">
+                        <DataGrid ItemsSource="{Binding Meetings}" AutoGenerateColumns="False"
+                                  IsReadOnly="True" CanUserAddRows="False" GridLinesVisibility="Horizontal"
+                                  BorderThickness="0" HeadersVisibility="Column">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Discipline" Binding="{Binding Discipline}" Width="80" />
+                                <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="110" />
+                                <DataGridTextColumn Header="Meeting" Binding="{Binding MeetingName}" Width="*" />
+                                <DataGridTextColumn Header="State" Binding="{Binding State}" Width="60" />
+                                <DataGridTextColumn Header="Country" Binding="{Binding Country}" Width="70" />
+                                <DataGridTextColumn Header="Races" Binding="{Binding RaceCount}" Width="55" />
+                                <DataGridTextColumn Header="Detail" Binding="{Binding RacesWithDetail}" Width="55" />
+                                <DataGridTextColumn Header="First Race" Binding="{Binding FirstRaceLocalTime}" Width="90" />
+                                <DataGridTextColumn Header="Track" Binding="{Binding TrackCondition}" Width="80" />
+                                <DataGridTextColumn Header="Stage" Binding="{Binding MeetingStage}" Width="100" />
+                                <DataGridTemplateColumn Header="Progress" Width="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <ProgressBar Width="80" Height="8" Minimum="0" Maximum="100"
+                                                             Value="{Binding ProgressPercent, Mode=OneWay}" />
+                                                <TextBlock Text="{Binding ProgressPercent, StringFormat={}{0}%}" Margin="8,0,0,0"
+                                                           VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource SubtleTextBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Status bar -->
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="180" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource SubtleTextBrush}" />
+                        <ProgressBar Grid.Column="1" Width="180" IsIndeterminate="{Binding IsBusy}"
+                                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Bucket">
+                <components:BucketView />
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
