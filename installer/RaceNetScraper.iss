@@ -3,7 +3,7 @@
 ; installer\publish-racenet first and then invokes ISCC on this script.
 
 #ifndef AppVersion
-  #define AppVersion "3.12.0"
+  #define AppVersion "1.0.0"
 #endif
 
 ; S3 access/secret key baked into a fresh install's default settings.json (see [Code] below) —
