@@ -8,8 +8,8 @@
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <converters:ProgressToWidthConverter x:Key="ProgressToWidthConverter" />
 
-        <!-- ===================== Dark theme palette (green accent, matching Racenet's
-             own site branding) ===================== -->
+        <!-- ===================== Dark theme palette (red accent, matching Racenet's own
+             site branding — #AB1D37, the color of racenet.com.au's own logo) ===================== -->
         <SolidColorBrush x:Key="BgBrush" Color="#1A1B1E" />
         <SolidColorBrush x:Key="PanelBrush" Color="#212226" />
         <SolidColorBrush x:Key="ControlBrush" Color="#2A2B2F" />
@@ -17,13 +17,13 @@
         <SolidColorBrush x:Key="BorderBrush2" Color="#3A3B40" />
         <SolidColorBrush x:Key="TextBrush" Color="#ECECEC" />
         <SolidColorBrush x:Key="SubtleTextBrush" Color="#9A9AA0" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#22B14C" />
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#3DCB63" />
-        <SolidColorBrush x:Key="AccentPressedBrush" Color="#158A38" />
-        <SolidColorBrush x:Key="AccentDimBrush" Color="#1D5C34" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#AB1D37" />
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#CC2643" />
+        <SolidColorBrush x:Key="AccentPressedBrush" Color="#84152A" />
+        <SolidColorBrush x:Key="AccentDimBrush" Color="#4A2530" />
         <SolidColorBrush x:Key="RowAltBrush" Color="#232427" />
         <SolidColorBrush x:Key="RowHoverBrush" Color="#2C2D31" />
-        <SolidColorBrush x:Key="RowSelectedBrush" Color="#123B1F" />
+        <SolidColorBrush x:Key="RowSelectedBrush" Color="#3D1420" />
 
         <!-- ===================== Calendar/DatePicker dropdown readability =====================
              WPF's default Calendar/CalendarDayButton/CalendarButton control templates read text
@@ -37,8 +37,8 @@
         <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#212226" />
         <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#2A2B2F" />
         <SolidColorBrush x:Key="{x:Static SystemColors.ControlLightBrushKey}" Color="#35363B" />
-        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#22B14C" />
-        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0B0B0C" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#AB1D37" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF" />
         <SolidColorBrush x:Key="{x:Static SystemColors.ActiveBorderBrushKey}" Color="#3A3B40" />
 
         <!-- ===================== Window ===================== -->
@@ -87,7 +87,7 @@
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ModernButtonBase}">
             <Setter Property="Background" Value="{StaticResource AccentBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-            <Setter Property="Foreground" Value="#0B0B0C" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="Tag" Value="{StaticResource AccentHoverBrush}" />
         </Style>
 
@@ -143,7 +143,7 @@
                                     Background="{StaticResource ControlBrush}"
                                     BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1"
                                     VerticalAlignment="Center">
-                                <Path x:Name="Check" Data="M2,7 L6,11 L14,2" Stroke="#0B0B0C" StrokeThickness="2.2"
+                                <Path x:Name="Check" Data="M2,7 L6,11 L14,2" Stroke="#FFFFFF" StrokeThickness="2.2"
                                       StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                                       Visibility="Collapsed" Stretch="Uniform" Margin="2" />
                             </Border>
@@ -227,7 +227,7 @@
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#0B0B0C" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
                                 <Setter Property="FontWeight" Value="SemiBold" />
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -256,7 +256,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="HasSelectedDays" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#0B0B0C" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
                             </Trigger>
                             <Trigger Property="IsInactive" Value="True">
                                 <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
@@ -402,7 +402,7 @@
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                         <GradientStop Color="Transparent" Offset="0" />
-                                        <GradientStop Color="#3DCB63" Offset="0.5" />
+                                        <GradientStop Color="#CC2643" Offset="0.5" />
                                         <GradientStop Color="Transparent" Offset="1" />
                                     </LinearGradientBrush>
                                 </Border.Background>

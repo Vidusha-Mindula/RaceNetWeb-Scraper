@@ -34,15 +34,6 @@
                                Foreground="{StaticResource SubtleTextBrush}" Margin="0,1,0,0" />
                 </StackPanel>
             </StackPanel>
-
-            <!-- Mascot's running track: the empty header space to the right of the title. It
-                 walks back and forth across this whole area continuously, and additionally comes
-                 alive (blinking/glowing/talking) whenever a scrape is running. -->
-            <Grid x:Name="MascotTrack" Grid.Column="1" Margin="24,0,0,0">
-                <components:ScraperBotIndicator HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                 IsActive="{Binding IsBusy}"
-                                                 TrackWidth="{Binding ActualWidth, ElementName=MascotTrack}" />
-            </Grid>
         </Grid>
 
         <!-- Update banner: hidden unless MainViewModel finds a newer GitHub release on startup -->
