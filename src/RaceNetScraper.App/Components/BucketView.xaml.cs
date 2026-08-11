@@ -7,7 +7,6 @@ namespace RaceNetScraper.App.Components;
 public partial class BucketView : System.Windows.Controls.UserControl
 {
     private readonly BucketViewModel _viewModel = new();
-    private bool _loaded;
 
     public BucketView()
     {
@@ -15,13 +14,16 @@ public partial class BucketView : System.Windows.Controls.UserControl
         DataContext = _viewModel;
     }
 
+    /// <summary>Re-reads settings.json and re-lists the bucket — called on first load and again
+    /// every time MainWindow's TabControl selects this tab (see MainTabs_SelectionChanged), since
+    /// the Scraper tab's bucket-name field can change what's configured while this tab isn't the
+    /// one showing, and TabItem content isn't torn down/recreated on every switch (Loaded alone
+    /// wouldn't fire again to catch that).</summary>
+    public Task RefreshAsync() => _viewModel.RefreshCommand.ExecuteAsync(null);
+
     private async void UserControl_Loaded(object sender, RoutedEventArgs e)
     {
-        // TabItem content stays alive after the tab is switched away from, so Loaded can fire
-        // more than once (e.g. re-docking) — only auto-refresh the first time.
-        if (_loaded) return;
-        _loaded = true;
-        await _viewModel.RefreshCommand.ExecuteAsync(null);
+        await RefreshAsync();
     }
 
     private async void Upload_Click(object sender, RoutedEventArgs e)

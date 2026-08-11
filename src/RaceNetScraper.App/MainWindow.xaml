@@ -85,7 +85,7 @@
             </StackPanel>
         </Border>
 
-        <TabControl Grid.Row="3">
+        <TabControl Grid.Row="3" SelectionChanged="MainTabs_SelectionChanged">
             <TabItem Header="Scraper">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -195,7 +195,7 @@
             </TabItem>
 
             <TabItem Header="Bucket">
-                <components:BucketView />
+                <components:BucketView x:Name="BucketViewControl" />
             </TabItem>
         </TabControl>
     </Grid>

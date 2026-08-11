@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using RaceNetScraper.App.ViewModels;
 
@@ -15,6 +16,17 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = new MainViewModel();
         SourceInitialized += (_, _) => TryEnableDarkTitleBar();
+    }
+
+    // Re-reads the Bucket tab's settings every time it's selected — the Scraper tab's own bucket
+    // name field can change what's configured while the Bucket tab isn't showing, and its content
+    // isn't recreated on every switch, so nothing would otherwise notice that change.
+    private async void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count > 0 && e.AddedItems[0] is TabItem { Header: "Bucket" })
+        {
+            await BucketViewControl.RefreshAsync();
+        }
     }
 
     // Makes the native Windows title bar/chrome dark too, so it matches the dark theme
