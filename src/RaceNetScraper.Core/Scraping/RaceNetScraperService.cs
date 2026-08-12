@@ -423,6 +423,24 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
 
         if (eventEl.TryGetProperty("placeWinners", out var placeWinners) && placeWinners.ValueKind == JsonValueKind.Number)
             raceEvent.PlaceWinners = placeWinners.GetInt32();
+
+        // Racenet has no per-meeting weather query (unlike Punters, which does and copies it onto
+        // every event at meeting-scrape time) — it's only resolved once this specific race's own
+        // page has been read, so it's backfilled here rather than at ScrapeMeetingsAsync time.
+        if (eventEl.TryGetProperty("weather", out var weather) && weather.ValueKind == JsonValueKind.Object)
+        {
+            raceEvent.Weather = new Weather
+            {
+                Condition = weather.TryGetProperty("condition", out var cond) && cond.ValueKind == JsonValueKind.String
+                    ? cond.GetString() : null,
+                Temperature = weather.TryGetProperty("temperature", out var temp) && temp.ValueKind == JsonValueKind.String
+                    ? temp.GetString() : null,
+                Wind = weather.TryGetProperty("wind", out var wind) && wind.ValueKind == JsonValueKind.String
+                    ? wind.GetString() : null,
+                Humidity = weather.TryGetProperty("humidity", out var humidity) && humidity.ValueKind == JsonValueKind.String
+                    ? humidity.GetString() : null
+            };
+        }
     }
 
     public async Task<List<RaceDetail>> ScrapeRacesForMeetingAsync(
@@ -941,6 +959,21 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
             const selections = selectionsKey ? (event_[selectionsKey] || []) : (event_.selections || []);
             const runners = selections.map(buildRunner);
 
+            // Racenet's weather is per-event (not per-meeting like Punters'), with the
+            // wind/humidity fields already prefixed with their own label ("Wind: WNW at 17kph") —
+            // stripped here so the DTO's own field name doesn't end up doubled in the value.
+            function cleanWeatherField(s, prefix) {
+                if (!s) return null;
+                return s.toLowerCase().startsWith(prefix.toLowerCase()) ? s.slice(prefix.length).trim() : s;
+            }
+            const w = event_.weather;
+            const weather = w ? {
+                condition: w.condition || null,
+                temperature: w.temperature != null ? (w.temperature + (w.temperatureUnits || '')) : null,
+                wind: cleanWeatherField(w.wind, 'Wind:'),
+                humidity: cleanWeatherField(w.humidity, 'Humidity:')
+            } : null;
+
             return JSON.stringify({
                 eventMeta: {
                     racePrizeMoney: event_.racePrizeMoney != null ? event_.racePrizeMoney : null,
@@ -948,7 +981,8 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
                     prizeMoney: event_.prizeMoney || [],
                     starters: event_.starters != null ? event_.starters : null,
                     resultState: event_.resultState || null,
-                    placeWinners: event_.placeWinners != null ? event_.placeWinners : null
+                    placeWinners: event_.placeWinners != null ? event_.placeWinners : null,
+                    weather: weather
                 },
                 raceDetail: {
                     meetingId: args.meetingId || null,
