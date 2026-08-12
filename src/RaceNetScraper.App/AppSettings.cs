@@ -15,12 +15,12 @@ public sealed class AppSettings
     public bool UploadToS3 { get; set; }
     public string S3Endpoint { get; set; } = "https://s3.troyendata.com";
 
-    // Deliberately no default access/secret key here (source is public) — set these via the
-    // app's own UI on first run, or by hand-editing settings.json at the path below; either way
-    // they're saved locally and never checked into source control.
+    // Deliberately no default access/secret key or bucket name here (source is public) — set
+    // these via the app's own UI on first run, or by hand-editing settings.json at the path
+    // below; either way they're saved locally and never checked into source control.
     public string S3AccessKey { get; set; } = "";
     public string S3SecretKey { get; set; } = "";
-    public string S3BucketName { get; set; } = "troyen-gen-prod";
+    public string S3BucketName { get; set; } = "";
     public string S3Folder { get; set; } = "pending";
 
     /// <summary>Id of the last developer notice (see DeveloperNoticeChecker) the user explicitly

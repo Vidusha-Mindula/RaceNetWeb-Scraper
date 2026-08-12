@@ -16,6 +16,9 @@
 #ifndef S3SecretKey
   #define S3SecretKey ""
 #endif
+#ifndef S3BucketName
+  #define S3BucketName ""
+#endif
 
 #define AppName "RaceNet Meetings Scraper"
 #define AppExeName "RaceNetScraper.App.exe"
@@ -82,7 +85,7 @@ begin
 
   Json := '{"DownloadFolder":"","AutoExportAfterScrape":false,"UploadToS3":false,' +
     '"S3Endpoint":"https://s3.troyendata.com","S3AccessKey":"{#S3AccessKey}",' +
-    '"S3SecretKey":"{#S3SecretKey}","S3BucketName":"troyen-gen-prod","S3Folder":"pending",' +
+    '"S3SecretKey":"{#S3SecretKey}","S3BucketName":"{#S3BucketName}","S3Folder":"pending",' +
     '"LastSeenNoticeId":""}';
 
   SaveStringToFile(SettingsPath, Json, False);
