@@ -639,7 +639,11 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
-            await S3JsonUploader.UploadAsync(_settings, $"{meetingFolderName}-{fileName}", json);
+            // Not _settings: that's loaded once at startup and never refreshed, so it would still
+            // carry blank/stale S3 keys if they were entered on the Bucket tab after this window
+            // opened — confirmed live as the reason bucket listing worked (BucketViewModel always
+            // reloads fresh) while the scrape's own upload kept failing with the same keys.
+            await S3JsonUploader.UploadAsync(AppSettings.Load(), $"{meetingFolderName}-{fileName}", json);
             return true;
         }
         catch (Exception ex)

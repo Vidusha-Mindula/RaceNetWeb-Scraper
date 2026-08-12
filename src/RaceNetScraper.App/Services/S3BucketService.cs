@@ -163,7 +163,9 @@ public static class S3BucketService
     /// contain a more specific reason than the short Message alone). Never lets a logging failure
     /// mask or replace the real exception - this always rethrows after logging (or silently
     /// skips logging if the log write itself fails).</summary>
-    private static void LogFailure(string operation, AppSettings settings, Exception ex)
+    /// <summary>Not private: <see cref="S3JsonUploader"/> shares this same log file for its own
+    /// upload failures rather than duplicating this logic.</summary>
+    internal static void LogFailure(string operation, AppSettings settings, Exception ex)
     {
         try
         {

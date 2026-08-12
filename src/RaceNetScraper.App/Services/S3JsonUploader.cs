@@ -22,12 +22,23 @@ public static class S3JsonUploader
         var folder = settings.S3Folder.Trim('/');
         var key = folder.Length > 0 ? $"{folder}/{fileName}" : fileName;
 
-        await client.PutObjectAsync(new PutObjectRequest
+        try
         {
-            BucketName = settings.S3BucketName,
-            Key = key,
-            ContentBody = jsonContent,
-            ContentType = "application/json",
-        }, cancellationToken);
+            await client.PutObjectAsync(new PutObjectRequest
+            {
+                BucketName = settings.S3BucketName,
+                Key = key,
+                ContentBody = jsonContent,
+                ContentType = "application/json",
+            }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Logged to the same s3-debug.log S3BucketService already writes to — this call had
+            // no logging at all before, so a failed scrape-time upload left no diagnosable detail
+            // anywhere beyond the status bar's one-line summary, which isn't persisted.
+            S3BucketService.LogFailure("UploadJson", settings, ex);
+            throw;
+        }
     }
 }
