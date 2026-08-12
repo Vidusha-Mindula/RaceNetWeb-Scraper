@@ -57,18 +57,29 @@ public sealed partial class BucketViewModel : ObservableObject
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanDeleteSelected));
 
+    /// <summary>Re-reads settings.json fresh, applies one field, and saves — rather than mutating
+    /// the long-lived <see cref="_settings"/> field directly. MainViewModel keeps its own
+    /// independent AppSettings instance for the fields it owns (download folder, bucket name,
+    /// ...), and AppSettings.Save() serializes the WHOLE object: saving straight from this stale
+    /// in-memory copy would silently overwrite whatever MainViewModel had just written with
+    /// whatever values were in memory here since this control loaded.</summary>
+    private static void SaveSetting(Action<AppSettings> mutate)
+    {
+        var settings = AppSettings.Load();
+        mutate(settings);
+        settings.Save();
+    }
+
     partial void OnS3AccessKeyChanged(string value)
     {
         if (_loadingSettings) return;
-        _settings.S3AccessKey = value;
-        _settings.Save();
+        SaveSetting(s => s.S3AccessKey = value);
     }
 
     partial void OnS3SecretKeyChanged(string value)
     {
         if (_loadingSettings) return;
-        _settings.S3SecretKey = value;
-        _settings.Save();
+        SaveSetting(s => s.S3SecretKey = value);
     }
 
     /// <summary>Amazon's SDK exception carries the actual S3 error code and request id, which

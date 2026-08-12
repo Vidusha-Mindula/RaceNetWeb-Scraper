@@ -156,32 +156,42 @@ public sealed partial class MainViewModel : ObservableObject
 
     private bool CanStop() => IsBusy && !IsStopping;
 
+    /// <summary>Re-reads settings.json fresh, applies one field, and saves — rather than mutating
+    /// the long-lived <see cref="_settings"/> field directly. BucketViewModel keeps its own
+    /// independent AppSettings instance for the access/secret key fields it owns, and
+    /// AppSettings.Save() serializes the WHOLE object: saving straight from this stale in-memory
+    /// copy would silently overwrite whatever BucketViewModel had just written with whatever
+    /// values were in memory here since startup (confirmed live — this is exactly why access/
+    /// secret key edits on the Bucket tab were getting wiped out again shortly after).</summary>
+    private static void SaveSetting(Action<AppSettings> mutate)
+    {
+        var settings = AppSettings.Load();
+        mutate(settings);
+        settings.Save();
+    }
+
     partial void OnDownloadFolderChanged(string value)
     {
         if (_loadingSettings) return;
-        _settings.DownloadFolder = value;
-        _settings.Save();
+        SaveSetting(s => s.DownloadFolder = value);
     }
 
     partial void OnAutoExportAfterScrapeChanged(bool value)
     {
         if (_loadingSettings) return;
-        _settings.AutoExportAfterScrape = value;
-        _settings.Save();
+        SaveSetting(s => s.AutoExportAfterScrape = value);
     }
 
     partial void OnUploadToS3Changed(bool value)
     {
         if (_loadingSettings) return;
-        _settings.UploadToS3 = value;
-        _settings.Save();
+        SaveSetting(s => s.UploadToS3 = value);
     }
 
     partial void OnS3BucketNameChanged(string value)
     {
         if (_loadingSettings) return;
-        _settings.S3BucketName = value;
-        _settings.Save();
+        SaveSetting(s => s.S3BucketName = value);
     }
 
     private async Task CheckForUpdatesAsync()
@@ -213,8 +223,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (_pendingNoticeId is null) return;
 
-        _settings.LastSeenNoticeId = _pendingNoticeId;
-        _settings.Save();
+        SaveSetting(s => s.LastSeenNoticeId = _pendingNoticeId);
         DeveloperNoticeVisible = false;
     }
 
