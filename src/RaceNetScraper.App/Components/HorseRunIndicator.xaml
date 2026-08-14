@@ -1,0 +1,12 @@
+<UserControl x:Class="RaceNetScraper.App.Components.HorseRunIndicator"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" x:Name="Root">
+    <!-- 12-frame gallop cycle rasterized from the user's Horse Run.svg (SMIL animation WPF can't
+         render natively). Frames are cycled by HorseRunIndicator.xaml.cs's DispatcherTimer only
+         while IsRunning is true, so this sits idle (and invisible) whenever nothing is scraping. -->
+    <Image x:Name="FrameImage" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Center"
+           Height="56" Visibility="Collapsed" SnapsToDevicePixels="True" />
+</UserControl>

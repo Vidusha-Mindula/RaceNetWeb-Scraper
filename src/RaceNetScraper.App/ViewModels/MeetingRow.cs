@@ -13,6 +13,7 @@ public sealed partial class MeetingRow : ObservableObject
     public Discipline DisciplineEnum { get; init; }
     public Meeting Meeting { get; init; } = null!;
     public string Group { get; init; } = "";
+    public DateOnly Date { get; init; }
 
     public string Discipline => DisciplineEnum.Code();
     public string MeetingName => Meeting.Name ?? "";
@@ -47,10 +48,11 @@ public sealed partial class MeetingRow : ObservableObject
 
     partial void OnRacesProcessedChanged(int value) => OnPropertyChanged(nameof(ProgressPercent));
 
-    public static MeetingRow From(Discipline discipline, string group, Meeting meeting) => new()
+    public static MeetingRow From(Discipline discipline, string group, Meeting meeting, DateOnly date) => new()
     {
         DisciplineEnum = discipline,
         Meeting = meeting,
-        Group = group
+        Group = group,
+        Date = date
     };
 }
