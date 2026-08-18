@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
@@ -55,49 +58,245 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
 {
     private const string BaseUrl = "https://www.racenet.com.au";
 
-    private const string UserAgent =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
     private IPlaywright? _playwright;
     private IBrowser? _browser;
+    private IBrowser? _cdpBrowser;
     private IBrowserContext? _context;
     private IPage? _sessionPage;
+    private Process? _browserProcess;
+    private bool _headless;
     private int _navigationTimeoutMs = 45_000;
     private int _settleDelayMs = 1500;
 
     public async Task InitializeAsync(ScraperOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new ScraperOptions();
-
-        var args = new List<string> { "--disable-blink-features=AutomationControlled" };
-        if (!options.Headless && options.HideWindow)
-        {
-            args.Add("--window-position=-32000,-32000");
-            args.Add("--disable-backgrounding-occluded-windows");
-            args.Add("--disable-renderer-backgrounding");
-            args.Add("--disable-background-timer-throttling");
-        }
+        _headless = options.Headless;
 
         _playwright = await Playwright.CreateAsync();
-        _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = options.Headless,
-            Args = args
-        });
 
-        _context = await _browser.NewContextAsync(new BrowserNewContextOptions
+        // Firefox is a different engine entirely: none of Chromium's automation-fingerprint or
+        // bot-detection workarounds apply to it, so it launches plain (see ScraperBrowserChoice's
+        // doc comment for why that also means it's less proven against Racenet's bot-detection).
+        if (options.Browser == ScraperBrowserChoice.Firefox)
         {
-            UserAgent = UserAgent,
-            ViewportSize = new ViewportSize { Width = 1400, Height = 900 },
-            Locale = "en-AU",
-            TimezoneId = "Australia/Sydney"
-        });
+            // Firefox has no equivalent of Chromium's "--window-position" launch argument, so
+            // "hidden but not headless" (see HideWindow's doc comment on ScraperOptions) has to
+            // happen after the fact instead of via a launch flag — see OffScreenWindowMover.
+            var launchedAt = DateTime.UtcNow;
+            _browser = await _playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                Headless = options.Headless
+            });
 
-        await _context.AddInitScriptAsync(
-            "Object.defineProperty(navigator, 'webdriver', { get: () => undefined });");
+            if (!options.Headless && options.HideWindow)
+            {
+                // 20s upper bound to allow for first-run Firefox profile creation, which is much
+                // slower than a normal launch — TryMoveOffScreenAsync returns well before that in
+                // the common case, shortly after it confirms a window was actually moved.
+                await OffScreenWindowMover.TryMoveOffScreenAsync(
+                    "firefox", launchedAt, TimeSpan.FromSeconds(20), cancellationToken);
+            }
+
+            _context = await _browser.NewContextAsync(new BrowserNewContextOptions
+            {
+                ViewportSize = new ViewportSize { Width = 1400, Height = 900 },
+                Locale = "en-AU",
+                TimezoneId = "Australia/Sydney"
+            });
+            await _context.AddInitScriptAsync(
+                "Object.defineProperty(navigator, 'webdriver', { get: () => undefined });");
+        }
+        else
+        {
+            // A Playwright-LAUNCHED Chromium/Edge — even with AutomationControlled disabled —
+            // still carries other automation fingerprints (--enable-automation, injected CDP init
+            // scripts) that Racenet's bot-detection interstitial ("Checking your browser...")
+            // detects and never clears, no matter how long you wait. Confirmed live: a plain curl
+            // request and a Playwright-launched headed Chromium both got stuck on/blocked by the
+            // exact same challenge page. The fix isn't a smarter wait, it's not looking automated
+            // in the first place. So when the real system browser is actually installed, this
+            // starts it as an ordinary OS process (nothing Playwright-specific about the launch)
+            // and attaches to it over CDP instead — see InitViaCdpAsync. Only when that executable
+            // can't be found does this fall back to the previous Playwright-launched approach,
+            // which remains just as exposed to the same detection as before.
+            var executablePath = options.Browser == ScraperBrowserChoice.Edge
+                ? FindEdgeExecutablePath()
+                : FindChromeExecutablePath();
+
+            if (executablePath is not null)
+            {
+                await InitViaCdpAsync(executablePath, options, cancellationToken);
+            }
+            else
+            {
+                var args = new List<string> { "--disable-blink-features=AutomationControlled" };
+                if (!options.Headless && options.HideWindow)
+                {
+                    args.Add("--window-position=-32000,-32000");
+                    args.Add("--disable-backgrounding-occluded-windows");
+                    args.Add("--disable-renderer-backgrounding");
+                    args.Add("--disable-background-timer-throttling");
+                }
+
+                _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+                {
+                    Headless = options.Headless,
+                    Args = args,
+                    Channel = options.Browser == ScraperBrowserChoice.Edge ? "msedge" : null
+                });
+
+                // No UserAgent override here (deliberately): a hardcoded string goes stale the
+                // moment the bundled Chromium build moves on, and Playwright's UserAgent option
+                // only rewrites the User-Agent header/navigator.userAgent — it does NOT touch the
+                // Sec-CH-UA Client Hints headers, which keep reporting the browser's real version
+                // regardless. A stale "Chrome/124" override alongside a much newer real
+                // `sec-ch-ua` value is a UA/Client-Hints mismatch — a well-known, highly reliable
+                // bot signal (confirmed against this exact issue by a sibling scraper against a
+                // similar site).
+                _context = await _browser.NewContextAsync(new BrowserNewContextOptions
+                {
+                    ViewportSize = new ViewportSize { Width = 1400, Height = 900 },
+                    Locale = "en-AU",
+                    TimezoneId = "Australia/Sydney"
+                });
+                await _context.AddInitScriptAsync(
+                    "Object.defineProperty(navigator, 'webdriver', { get: () => undefined });");
+            }
+        }
 
         _navigationTimeoutMs = options.NavigationTimeoutMs;
         _settleDelayMs = options.SettleDelayMs;
+    }
+
+    // ── CDP-attach browser init (see the comment in InitializeAsync for why) ─────────────────
+
+    /// <summary>
+    /// Starts <paramref name="executablePath"/> as an ordinary OS process — not via Playwright's
+    /// own launcher — with its own on-disk profile, then attaches Playwright to it over the
+    /// Chrome DevTools Protocol. A persistent <c>--user-data-dir</c> means any clearance cookie
+    /// Racenet's bot-detection sets survives across runs once earned, so only the first run (or
+    /// the first run after it expires) actually has to clear the challenge at all.
+    /// </summary>
+    private async Task InitViaCdpAsync(string executablePath, ScraperOptions options, CancellationToken cancellationToken)
+    {
+        var userDataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "RaceNetScraper", "browser-profile", options.Browser.ToString().ToLowerInvariant());
+        Directory.CreateDirectory(userDataDir);
+
+        var port = FindFreeTcpPort();
+        var psi = new ProcessStartInfo { FileName = executablePath, UseShellExecute = false };
+        psi.ArgumentList.Add($"--remote-debugging-port={port}");
+        psi.ArgumentList.Add($"--user-data-dir={userDataDir}");
+        psi.ArgumentList.Add("--no-first-run");
+        psi.ArgumentList.Add("--no-default-browser-check");
+        // Stop the browser from throttling/backgrounding/discarding the controlled tab. Without
+        // these, a heavy race page can get its renderer discarded or the tab put to sleep, which
+        // drops the CDP target mid-scrape ("Target page, context or browser has been closed").
+        // NOTE: --disable-features must only ever appear ONCE on the command line — Chromium
+        // only honors the last occurrence rather than merging repeats, so every disabled
+        // feature has to be listed together here.
+        //
+        // msImplicitSignin/msSyncConsentUI: Windows' own signed-in account otherwise gets
+        // auto-detected and Edge offers to sync that real account's browsing data (passwords,
+        // history) into this profile — both a privacy problem (the user's real account/data
+        // linked into an automation profile) and a reliability one (a browser-chrome overlay the
+        // page-level bot-detection below can't see or dismiss, since it isn't part of the page's
+        // own DOM). --disable-sync (a separate flag, not a --disable-features entry) stops the
+        // sync relationship itself.
+        psi.ArgumentList.Add(
+            "--disable-features=msEdgeWelcomeExperience,msFirstRunExperience,msSleepingTabs," +
+            "IntensiveWakeUpThrottling,msImplicitSignin,msSyncConsentUI");
+        psi.ArgumentList.Add("--disable-sync");
+        psi.ArgumentList.Add("--disable-background-timer-throttling");
+        psi.ArgumentList.Add("--disable-backgrounding-occluded-windows");
+        psi.ArgumentList.Add("--disable-renderer-backgrounding");
+        psi.ArgumentList.Add("--disable-dev-shm-usage");
+        if (options.Headless)
+        {
+            psi.ArgumentList.Add("--headless=new");
+        }
+        else if (options.HideWindow)
+        {
+            // Same off-screen trick as the Playwright-launched path — still a real, visible-to-
+            // Chromium window (so it isn't throttled like an actually-minimized one), just placed
+            // off the desktop. Note: this also means nobody can manually solve a challenge that
+            // doesn't clear on its own — see WaitForChallengeToClearAsync's manual-solve prompt,
+            // which needs HideWindow=false to actually be usable.
+            psi.ArgumentList.Add("--window-position=-32000,-32000");
+        }
+        else
+        {
+            psi.ArgumentList.Add("--start-maximized");
+        }
+        psi.ArgumentList.Add("about:blank");
+
+        _browserProcess = Process.Start(psi)
+            ?? throw new InvalidOperationException($"Failed to start {executablePath}.");
+
+        var endpoint = $"http://127.0.0.1:{port}";
+        using (var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) })
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var version = await http.GetStringAsync($"{endpoint}/json/version");
+                    if (!string.IsNullOrWhiteSpace(version)) break;
+                }
+                catch
+                {
+                    if (DateTime.UtcNow >= deadline)
+                    {
+                        throw new InvalidOperationException(
+                            $"{Path.GetFileName(executablePath)} DevTools endpoint did not become available within 30s.");
+                    }
+                    await Task.Delay(500, cancellationToken);
+                }
+            }
+        }
+
+        _cdpBrowser = await _playwright!.Chromium.ConnectOverCDPAsync(endpoint);
+        _context = _cdpBrowser.Contexts.Count > 0 ? _cdpBrowser.Contexts[0] : await _cdpBrowser.NewContextAsync();
+    }
+
+    private static int FindFreeTcpPort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
+    }
+
+    // Same candidate paths ScraperBrowserAvailability.IsEdgeInstalled checks for UI gating —
+    // Edge isn't downloaded by Playwright, so availability just means checking its usual install path.
+    private static string? FindEdgeExecutablePath()
+    {
+        string[] candidates =
+        [
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft", "Edge", "Application", "msedge.exe"),
+        ];
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    // Unlike ScraperBrowserAvailability's "Chrome" (which means Playwright's bundled Chromium
+    // download), this specifically looks for a real, separately-installed Google Chrome — the
+    // CDP-attach trick only works against a genuinely, independently-launched browser process.
+    // Falls back to the bundled Chromium in InitializeAsync when this isn't found.
+    private static string? FindChromeExecutablePath()
+    {
+        string[] candidates =
+        [
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google", "Chrome", "Application", "chrome.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "Application", "chrome.exe"),
+        ];
+        return candidates.FirstOrDefault(File.Exists);
     }
 
     /// <summary>
@@ -125,7 +324,8 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
         return _sessionPage;
     }
 
-    private async Task NavigateAsync(IPage page, string url, CancellationToken cancellationToken)
+    private async Task NavigateAsync(
+        IPage page, string url, IProgress<string>? progress, string disciplineCode, CancellationToken cancellationToken)
     {
         try
         {
@@ -141,12 +341,169 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        await WaitForChallengeIfPresentAsync(page, progress, disciplineCode, cancellationToken);
         await page.WaitForTimeoutAsync(_settleDelayMs);
     }
 
     private static string Snippet(string s) =>
         string.IsNullOrEmpty(s) ? "(empty response)"
             : Regex.Replace(s, @"\s+", " ").Trim() is var flat && flat.Length <= 300 ? flat : flat[..300] + "...";
+
+    // ── Bot-detection challenge handling ──────────────────────────────────────────
+    // Ported from a sibling scraper (PuntersWebScraper) that already solved this exact problem
+    // against a similar site. Detection here only ever checks for the challenge's *presence*
+    // (title/body text/known selectors) — it never tries to reach into a Turnstile-style widget
+    // itself, since InitializeAsync/InitViaCdpAsync's CDP-attach approach is what actually gets
+    // a challenge to validate; this is just the wait-and-retry loop around that.
+
+    /// <summary>
+    /// Detects a bot-detection interstitial by its page title and well-known challenge markers —
+    /// this is what Racenet showed live ("Checking your browser... Just checking your browser
+    /// This should only take a moment.") when scraped from a datacenter/cloud IP. Deliberately
+    /// conservative (returns false rather than throwing) on any evaluation failure — a navigation
+    /// in flight or a not-yet-ready page just means "unknown, let the caller retry".
+    /// </summary>
+    private static async Task<bool> IsChallengePageAsync(IPage page)
+    {
+        try
+        {
+            var title = await page.TitleAsync();
+            if (title.Contains("Just a moment", StringComparison.OrdinalIgnoreCase) ||
+                title.Contains("Checking your browser", StringComparison.OrdinalIgnoreCase) ||
+                title.Contains("Attention Required", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return await page.EvaluateAsync<bool>("""
+                () => {
+                    const text = document.body ? document.body.innerText : '';
+                    if (/just checking your browser|checking if the site connection is secure|verify you are human/i.test(text)) return true;
+                    return !!document.querySelector('#challenge-form, #cf-challenge-running, .cf-turnstile, iframe[src*="challenges.cloudflare.com"]');
+                }
+                """);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// A checkbox-style challenge widget's checkbox commonly lives inside a *closed* shadow root
+    /// — no selector, in any tool, can target it directly, so the only reliable way in is a real
+    /// mouse click at its actual on-screen position. <c>#w</c> is the div such widgets are
+    /// typically rendered into, in the page's own light DOM (not shadowed), so its bounding box
+    /// gives real, reliable coordinates to click within. There's no way to tell from outside
+    /// whether it's currently showing an inert "Verifying..." spinner or the actual checkbox
+    /// (both occupy the same box), so a click landing on the spinner is just a harmless no-op —
+    /// the caller re-attempts this periodically rather than treating one attempt as definitive.
+    /// </summary>
+    private static async Task TryClickChallengeCheckboxAsync(IPage page, CancellationToken cancellationToken)
+    {
+        var widget = page.Locator("#w");
+        if (await widget.CountAsync() == 0) return;
+
+        var box = await widget.BoundingBoxAsync();
+        if (box is not { Height: > 20 }) return;
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Click near the checkbox's left edge (vertically centered) rather than dead center of
+        // the whole widget box, which is mostly label text rather than checkbox.
+        var targetX = box.X + 20;
+        var targetY = box.Y + box.Height / 2;
+
+        await page.Mouse.MoveAsync((float)targetX - 30, (float)targetY - 10);
+        await page.WaitForTimeoutAsync(Random.Shared.Next(150, 350));
+        await page.Mouse.MoveAsync((float)targetX, (float)targetY);
+        await page.WaitForTimeoutAsync(Random.Shared.Next(250, 500));
+        await page.Mouse.DownAsync();
+        await page.WaitForTimeoutAsync(Random.Shared.Next(60, 140));
+        await page.Mouse.UpAsync();
+    }
+
+    /// <summary>
+    /// Polls until the interstitial goes away or <paramref name="deadline"/> is hit, actively
+    /// clicking a checkbox-style challenge widget (see TryClickChallengeCheckboxAsync) every ~8
+    /// seconds along the way rather than passively waiting for it to clear on its own. A
+    /// Playwright-LAUNCHED browser's clicks get rejected/ignored outright regardless of precision
+    /// — but InitViaCdpAsync means this is a genuinely non-automated browser instead, so an actual
+    /// click now gets evaluated on its own merits. If it's still stuck after a while and the
+    /// browser is actually visible on screen (Headless=false, HideWindow=false), this also prints
+    /// a one-time note that a human is welcome to click it too — not required, since the automated
+    /// clicking keeps running regardless, just an extra avenue. Either way, the persistent profile
+    /// then stores whatever clearance cookie was earned, so later runs skip the challenge entirely.
+    /// </summary>
+    private async Task WaitForChallengeToClearAsync(IPage page, DateTime deadline, CancellationToken cancellationToken)
+    {
+        var start = DateTime.UtcNow;
+        var promptedForManualSolve = false;
+        var nextClickAttempt = DateTime.MinValue; // click immediately on the first iteration
+
+        while (DateTime.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (DateTime.UtcNow >= nextClickAttempt)
+            {
+                await TryClickChallengeCheckboxAsync(page, cancellationToken);
+                nextClickAttempt = DateTime.UtcNow.AddSeconds(8);
+            }
+
+            await page.WaitForTimeoutAsync(2_000);
+            if (!await IsChallengePageAsync(page))
+            {
+                await page.WaitForTimeoutAsync(1_500); // let the real page render
+                return;
+            }
+
+            if (!_headless && !promptedForManualSolve && DateTime.UtcNow - start > TimeSpan.FromSeconds(30))
+            {
+                promptedForManualSolve = true;
+                Console.WriteLine();
+                Console.WriteLine("============================================================");
+                Console.WriteLine(" Racenet is still asking to verify the browser.");
+                Console.WriteLine(" Feel free to click any 'Verify you are human' checkbox");
+                Console.WriteLine(" yourself in the browser window that opened — scraping");
+                Console.WriteLine(" resumes automatically either way.");
+                Console.WriteLine("============================================================");
+                Console.WriteLine();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Wraps a navigation with detect → wait-for-clear → (bounded) reload-and-retry, so a
+    /// challenge that's slow but solvable doesn't get mistaken for a hard failure, and one that
+    /// genuinely won't clear still gives up rather than hanging forever. Headless runs get a
+    /// short budget (nobody can manually solve it); a visible run gets several minutes, since the
+    /// manual-solve prompt in WaitForChallengeToClearAsync needs that time to actually be useful.
+    /// </summary>
+    private async Task WaitForChallengeIfPresentAsync(
+        IPage page, IProgress<string>? progress, string disciplineCode, CancellationToken cancellationToken,
+        int maxAttempts = 3)
+    {
+        var budgetMs = _headless ? 90_000 : 300_000;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!await IsChallengePageAsync(page)) return;
+
+            progress?.Report($"[R-{disciplineCode}] Bot-detection challenge detected (attempt {attempt}) — waiting for it to clear...");
+            var deadline = DateTime.UtcNow.AddMilliseconds(budgetMs);
+            await WaitForChallengeToClearAsync(page, deadline, cancellationToken);
+
+            if (!await IsChallengePageAsync(page)) return;
+            if (attempt == maxAttempts) return; // let the caller's own diagnostics report the stuck page
+
+            progress?.Report($"[R-{disciplineCode}] Challenge still up — reloading and retrying...");
+            await page.ReloadAsync(new PageReloadOptions
+            {
+                WaitUntil = WaitUntilState.DOMContentLoaded,
+                Timeout = 60_000
+            });
+        }
+    }
 
     /// <summary>
     /// How far ahead Racenet's own named date tabs go (Today, Tomorrow, then this many more named
@@ -174,7 +531,7 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
         var page = await EnsurePageAsync();
         var url = $"{BaseUrl}/form-guide/{FormGuidePath(discipline)}";
         progress?.Report($"[R-{discipline.Code()}] Loading {url} ...");
-        await NavigateAsync(page, url, cancellationToken);
+        await NavigateAsync(page, url, progress, discipline.Code(), cancellationToken);
 
         // "Today" here must be Sydney's calendar day (the browser context's TimezoneId, set in
         // InitializeAsync), not the host machine's local date — Racenet's date tabs ("Tomorrow",
@@ -323,7 +680,7 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
 
         progress?.Report(
             $"[R-{discipline.Code()}] Race {raceEvent.EventNumber} ({meeting.Name}): loading {url} ...");
-        await NavigateAsync(page, url, cancellationToken);
+        await NavigateAsync(page, url, progress, discipline.Code(), cancellationToken);
 
         string raw;
         try
@@ -1001,8 +1358,30 @@ public sealed class RaceNetScraperService : IRaceNetScraperService
     public async ValueTask DisposeAsync()
     {
         if (_sessionPage is { IsClosed: false }) await _sessionPage.CloseAsync();
-        if (_context is not null) await _context.CloseAsync();
-        if (_browser is not null) await _browser.CloseAsync();
+
+        if (_cdpBrowser is not null)
+        {
+            try { await _cdpBrowser.CloseAsync(); } catch { /* already gone */ }
+        }
+        else
+        {
+            if (_context is not null) await _context.CloseAsync();
+            if (_browser is not null) await _browser.CloseAsync();
+        }
+
+        // The CDP path's browser process wasn't launched by Playwright, so it won't be cleaned
+        // up automatically — kill it ourselves.
+        try
+        {
+            if (_browserProcess is { HasExited: false })
+            {
+                _browserProcess.Kill(entireProcessTree: true);
+                _browserProcess.WaitForExit(5_000);
+            }
+        }
+        catch { /* already exited */ }
+        _browserProcess?.Dispose();
+
         _playwright?.Dispose();
     }
 }

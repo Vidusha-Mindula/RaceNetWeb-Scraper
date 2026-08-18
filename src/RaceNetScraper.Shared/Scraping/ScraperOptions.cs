@@ -3,6 +3,16 @@ namespace RaceNetScraper.Shared.Scraping;
 public sealed class ScraperOptions
 {
     /// <summary>
+    /// Which browser engine to drive. Defaults to Chrome — a real, separately-installed Chrome
+    /// (or Edge) attached to over CDP is what actually gets past Racenet's "Checking your
+    /// browser" bot-detection interstitial reliably (see RaceNetScraperService.InitViaCdpAsync);
+    /// a Playwright-LAUNCHED Chromium still carries automation fingerprints that trip it even
+    /// with AutomationControlled disabled. Falls back to Playwright's own bundled Chromium launch
+    /// when no real Chrome/Edge executable can be found on this machine.
+    /// </summary>
+    public ScraperBrowserChoice Browser { get; set; } = ScraperBrowserChoice.Chrome;
+
+    /// <summary>
     /// Run Chromium headless. Defaults to false: headless Chromium was observed getting
     /// hard-blocked (HTTP 403) on the very first page load by bot-detection, while a headed
     /// (visible) browser passed every time in testing. Try true first if you'd rather not see
