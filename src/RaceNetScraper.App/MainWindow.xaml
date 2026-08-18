@@ -297,6 +297,33 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Browser">
+                <StackPanel Margin="0,4,0,0">
+                    <Border Background="{StaticResource PanelBrush}" CornerRadius="10" BorderBrush="{StaticResource BorderBrush2}"
+                            BorderThickness="1" Padding="16,14">
+                        <StackPanel>
+                            <TextBlock Text="Scrape using" FontWeight="Bold" Margin="0,0,0,10" />
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton GroupName="ScraperBrowser" IsChecked="{Binding UseChromeBrowser}" IsEnabled="{Binding IsChromeInstalled}" Margin="0,0,24,0" VerticalAlignment="Center"
+                                             ToolTip="A real, separately-installed Chrome attached to over CDP — what actually gets past Racenet's bot-detection reliably. Falls back to Playwright's bundled Chromium if Chrome itself isn't found.">
+                                    <TextBlock Text="{Binding IsChromeInstalled, Converter={StaticResource BrowserLabelConverter}, ConverterParameter='Chrome (default)'}" />
+                                </RadioButton>
+                                <RadioButton GroupName="ScraperBrowser" IsChecked="{Binding UseFirefoxBrowser}" IsEnabled="{Binding IsFirefoxInstalled}" Margin="0,0,24,0" VerticalAlignment="Center"
+                                             ToolTip="A different rendering engine to Chrome/Edge — the CDP-attach and off-screen-window tricks this app uses don't apply here, so it may get blocked by Racenet's bot-detection more easily.">
+                                    <TextBlock Text="{Binding IsFirefoxInstalled, Converter={StaticResource BrowserLabelConverter}, ConverterParameter='Firefox'}" />
+                                </RadioButton>
+                                <RadioButton GroupName="ScraperBrowser" IsChecked="{Binding UseEdgeBrowser}" IsEnabled="{Binding IsEdgeInstalled}" VerticalAlignment="Center"
+                                             ToolTip="Chromium-based, same as Chrome — attaches to your system-installed Edge over CDP, so Edge must actually be installed on this PC.">
+                                    <TextBlock Text="{Binding IsEdgeInstalled, Converter={StaticResource BrowserLabelConverter}, ConverterParameter='Edge'}" />
+                                </RadioButton>
+                            </StackPanel>
+                            <TextBlock Margin="0,14,0,0" TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource SubtleTextBrush}"
+                                       Text="Applies to every scrape from this app — manual, and Auto Scrape. Chrome is recommended; Firefox and Edge are provided for cases where Chrome itself is blocked or unavailable on this machine. Greyed-out options aren't installed on this PC." />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
             <TabItem Header="Bucket">
                 <components:BucketView x:Name="BucketViewControl" />
             </TabItem>

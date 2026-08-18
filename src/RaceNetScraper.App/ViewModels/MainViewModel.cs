@@ -53,6 +53,9 @@ public sealed partial class MainViewModel : ObservableObject
         AutoScrapeGreyhounds = _settings.AutoScrapeGreyhounds;
         AutoScrapeHarness = _settings.AutoScrapeHarness;
         AutoScrapeLastRunSummary = _settings.AutoScrapeLastRunSummary;
+        UseFirefoxBrowser = _settings.ScraperBrowser == nameof(ScraperBrowserChoice.Firefox);
+        UseEdgeBrowser = _settings.ScraperBrowser == nameof(ScraperBrowserChoice.Edge);
+        UseChromeBrowser = !UseFirefoxBrowser && !UseEdgeBrowser;
         _loadingSettings = false;
 
         _ = CheckForUpdatesAsync();
@@ -77,6 +80,30 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private bool headless;
+
+    // --- Browser choice (see the Browser tab). Backed by three mutually-exclusive RadioButtons
+    // (same GroupName in XAML) rather than one enum-valued property, since that's a plain bool
+    // binding with no converter needed, matching every other checkbox/toggle in this app. ---
+    [ObservableProperty]
+    private bool useChromeBrowser = true;
+
+    [ObservableProperty]
+    private bool useFirefoxBrowser;
+
+    [ObservableProperty]
+    private bool useEdgeBrowser;
+
+    private ScraperBrowserChoice SelectedScraperBrowser =>
+        UseFirefoxBrowser ? ScraperBrowserChoice.Firefox :
+        UseEdgeBrowser ? ScraperBrowserChoice.Edge :
+        ScraperBrowserChoice.Chrome;
+
+    // Checked once at startup (installed/uninstalled doesn't change while the app is running) and
+    // bound to each RadioButton's IsEnabled on the Browser tab, so picking an unusable option
+    // isn't even possible rather than failing later when a scrape actually starts.
+    public bool IsChromeInstalled { get; } = ScraperBrowserAvailability.IsInstalled(ScraperBrowserChoice.Chrome);
+    public bool IsFirefoxInstalled { get; } = ScraperBrowserAvailability.IsInstalled(ScraperBrowserChoice.Firefox);
+    public bool IsEdgeInstalled { get; } = ScraperBrowserAvailability.IsInstalled(ScraperBrowserChoice.Edge);
 
     /// <summary>Optional filter: only scrape meetings whose venue country matches this ISO2 code (e.g. "AU", "NZ", "US"). Blank = no filter.</summary>
     [ObservableProperty]
@@ -316,6 +343,29 @@ public sealed partial class MainViewModel : ObservableObject
         SaveSetting(s => s.AutoScrapeHarness = value);
     }
 
+    // Checking one RadioButton in the "ScraperBrowser" group unchecks whichever one was
+    // previously checked, which fires that sibling's changed handler with false at the same time
+    // (as the framework unchecks it) — reacting to that false transition too would just mean
+    // whichever handler happens to run last decides the saved value instead of the one the user
+    // actually clicked, hence the `!value` guard below on every one of these.
+    partial void OnUseChromeBrowserChanged(bool value)
+    {
+        if (_loadingSettings || !value) return;
+        SaveSetting(s => s.ScraperBrowser = nameof(ScraperBrowserChoice.Chrome));
+    }
+
+    partial void OnUseFirefoxBrowserChanged(bool value)
+    {
+        if (_loadingSettings || !value) return;
+        SaveSetting(s => s.ScraperBrowser = nameof(ScraperBrowserChoice.Firefox));
+    }
+
+    partial void OnUseEdgeBrowserChanged(bool value)
+    {
+        if (_loadingSettings || !value) return;
+        SaveSetting(s => s.ScraperBrowser = nameof(ScraperBrowserChoice.Edge));
+    }
+
     /// <summary>Ticks every 30s on the UI thread; fires <see cref="ScrapeDatesAsync"/> once per
     /// configured time-of-day slot, for whichever days/disciplines are configured for auto-scrape
     /// (independent of the manual panel's own selections above), across every country/course.
@@ -498,6 +548,13 @@ public sealed partial class MainViewModel : ObservableObject
         List<Discipline> disciplines, List<DateOnly> dates, string countryFilter, string courseFilter,
         bool forceUploadToS3 = false)
     {
+        var browser = SelectedScraperBrowser;
+        if (!ScraperBrowserAvailability.IsInstalled(browser))
+        {
+            StatusText = $"{browser} isn't available on this PC. {ScraperBrowserAvailability.InstallHint(browser)}";
+            return;
+        }
+
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
@@ -521,7 +578,7 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             await using IRaceNetScraperService service = new RaceNetScraperService();
-            await service.InitializeAsync(new ScraperOptions { Headless = Headless }, token);
+            await service.InitializeAsync(new ScraperOptions { Headless = Headless, Browser = browser }, token);
 
             foreach (var date in dates)
             foreach (var discipline in disciplines)

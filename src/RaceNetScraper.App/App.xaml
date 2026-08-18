@@ -7,6 +7,7 @@
     <Application.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <converters:ProgressToWidthConverter x:Key="ProgressToWidthConverter" />
+        <converters:BrowserLabelConverter x:Key="BrowserLabelConverter" />
 
         <!-- ===================== Dark theme palette (red accent, matching Racenet's own
              site branding — #AB1D37, the color of racenet.com.au's own logo) ===================== -->

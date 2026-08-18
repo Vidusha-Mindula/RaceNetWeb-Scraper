@@ -47,6 +47,12 @@ public sealed class AppSettings
     public DateTime? AutoScrapeLastRunUtc { get; set; }
     public string AutoScrapeLastRunSummary { get; set; } = "";
 
+    /// <summary>Which browser to scrape with — "Chrome", "Firefox", or "Edge" (see the Browser
+    /// tab). Stored as a string rather than the ScraperBrowserChoice enum directly for a
+    /// human-readable settings.json. Defaults to Chrome, the only one these bot-detection
+    /// workarounds have actually been tested against.</summary>
+    public string ScraperBrowser { get; set; } = "Chrome";
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RaceNetScraper", "settings.json");
