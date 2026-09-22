@@ -7,7 +7,7 @@
         xmlns:vm="clr-namespace:RaceNetScraper.App.ViewModels"
         xmlns:components="clr-namespace:RaceNetScraper.App.Components"
         mc:Ignorable="d"
-        Title="Racenet Meetings Scraper  ·  by VM" Height="700" Width="1080"
+        Title="{Binding WindowTitle}" Height="700" Width="1080"
         MinHeight="540" MinWidth="880"
         Icon="app.ico"
         Background="{StaticResource BgBrush}">
@@ -29,7 +29,11 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <Border Width="8" Height="28" CornerRadius="4" Background="{StaticResource AccentBrush}" Margin="0,0,10,0" />
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Racenet Meetings Scraper" FontSize="19" FontWeight="Bold" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Racenet Meetings Scraper" FontSize="19" FontWeight="Bold" />
+                        <TextBlock Text="{Binding AppVersion, StringFormat='v{0}', Mode=OneWay}" FontSize="12" VerticalAlignment="Bottom"
+                                   Foreground="{StaticResource SubtleTextBrush}" Margin="8,0,0,2" />
+                    </StackPanel>
                     <TextBlock Text="Horses · Greyhounds · Harness — meetings and full race detail" FontSize="11.5"
                                Foreground="{StaticResource SubtleTextBrush}" Margin="0,1,0,0" />
                 </StackPanel>
@@ -157,6 +161,22 @@
                                   IsReadOnly="True" CanUserAddRows="False" GridLinesVisibility="Horizontal"
                                   BorderThickness="0" HeadersVisibility="Column">
                             <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Priority" Width="60">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="▲" Width="24" Padding="0" Style="{StaticResource SecondaryButton}"
+                                                        Command="{Binding DataContext.MoveMeetingUpCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Scrape this meeting sooner — moves it up the list. Anything not yet fully scraped is always processed top-to-bottom." />
+                                                <Button Content="▼" Width="24" Padding="0" Margin="4,0,0,0" Style="{StaticResource SecondaryButton}"
+                                                        Command="{Binding DataContext.MoveMeetingDownCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Scrape this meeting later — moves it down the list." />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=yyyy-MM-dd}" Width="90" />
                                 <DataGridTextColumn Header="Discipline" Binding="{Binding Discipline}" Width="80" />
                                 <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="110" />
@@ -189,13 +209,16 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="180" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                    Foreground="{StaticResource SubtleTextBrush}" />
-                        <Button Grid.Column="1" Content="Clear" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding ClearResultsCommand}" Margin="0,0,14,0"
+                        <Button Grid.Column="1" Content="Continue" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding ContinueCommand}" Margin="0,0,10,0"
+                                ToolTip="Resumes a stopped scrape — picks up any meeting/race that wasn't finished yet, without re-fetching or re-scraping what's already done. Only available right after clicking Stop." />
+                        <Button Grid.Column="2" Content="Clear" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding ClearResultsCommand}" Margin="0,0,14,0"
                                 ToolTip="Clears the grid and status below — only available once nothing is running." />
-                        <ProgressBar Grid.Column="2" Width="180" IsIndeterminate="{Binding IsBusy}"
+                        <ProgressBar Grid.Column="3" Width="180" IsIndeterminate="{Binding IsBusy}"
                                      Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
                 </Grid>
@@ -253,6 +276,22 @@
                                   IsReadOnly="True" CanUserAddRows="False" GridLinesVisibility="Horizontal"
                                   BorderThickness="0" HeadersVisibility="Column">
                             <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Priority" Width="60">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="▲" Width="24" Padding="0" Style="{StaticResource SecondaryButton}"
+                                                        Command="{Binding DataContext.MoveMeetingUpCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Scrape this meeting sooner — moves it up the list. Anything not yet fully scraped is always processed top-to-bottom." />
+                                                <Button Content="▼" Width="24" Padding="0" Margin="4,0,0,0" Style="{StaticResource SecondaryButton}"
+                                                        Command="{Binding DataContext.MoveMeetingDownCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Scrape this meeting later — moves it down the list." />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=yyyy-MM-dd}" Width="90" />
                                 <DataGridTextColumn Header="Discipline" Binding="{Binding Discipline}" Width="80" />
                                 <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="110" />
@@ -283,15 +322,18 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="180" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                    Foreground="{StaticResource SubtleTextBrush}" />
                         <Button Grid.Column="1" Content="Stop" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding StopCommand}" Margin="0,0,10,0"
                                 ToolTip="Cancels the running scrape (auto or manual — they're the same run) as soon as the current in-flight request finishes." />
-                        <Button Grid.Column="2" Content="Clear" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding ClearResultsCommand}" Margin="0,0,14,0"
+                        <Button Grid.Column="2" Content="Continue" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding ContinueCommand}" Margin="0,0,10,0"
+                                ToolTip="Resumes a stopped scrape — picks up any meeting/race that wasn't finished yet. Only available right after clicking Stop." />
+                        <Button Grid.Column="3" Content="Clear" Width="90" Style="{StaticResource SecondaryButton}" Command="{Binding ClearResultsCommand}" Margin="0,0,14,0"
                                 ToolTip="Clears the grid and status below — only available once nothing is running." />
-                        <ProgressBar Grid.Column="3" Width="180" IsIndeterminate="{Binding IsBusy}"
+                        <ProgressBar Grid.Column="4" Width="180" IsIndeterminate="{Binding IsBusy}"
                                      Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
                 </Grid>
@@ -319,6 +361,33 @@
                             </StackPanel>
                             <TextBlock Margin="0,14,0,0" TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource SubtleTextBrush}"
                                        Text="Applies to every scrape from this app — manual, and Auto Scrape. Chrome is recommended; Firefox and Edge are provided for cases where Chrome itself is blocked or unavailable on this machine. Greyed-out options aren't installed on this PC." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Lets the user install any past release on demand, not just whatever the
+                         automatic update banner offers — this is also how a downgrade is done:
+                         pick an older version below and click Install. -->
+                    <Border Background="{StaticResource PanelBrush}" CornerRadius="10" BorderBrush="{StaticResource BorderBrush2}"
+                            BorderThickness="1" Padding="16,14" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Margin="0,0,0,4">
+                                <Run Text="Switch version" />
+                                <Run Text=" — currently running " Foreground="{StaticResource SubtleTextBrush}" />
+                                <Run Text="{Binding AppVersion, StringFormat='v{0}', Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,0,10"
+                                       Text="Installs any past release — pick an older version here to roll back if a newer one causes a problem. Same silent install as the update banner: the app closes and reopens on its own, no wizard clicks needed." />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Check versions..." Width="140" Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding LoadReleasesCommand}" Margin="0,0,10,0" />
+                                <ComboBox ItemsSource="{Binding AvailableReleases}" SelectedItem="{Binding SelectedRelease}"
+                                          DisplayMemberPath="DisplayText" Width="120" Margin="0,0,10,0" />
+                                <Button Content="Install" Width="90" Style="{StaticResource PrimaryButton}"
+                                        Command="{Binding InstallSelectedVersionCommand}" Margin="0,0,10,0"
+                                        ToolTip="Downloads and silently installs the selected version, then relaunches — including installing an OLDER version than what's running now." />
+                            </StackPanel>
+                            <TextBlock Margin="0,10,0,0" Text="{Binding VersionPickerStatus}" TextWrapping="Wrap" FontSize="11.5"
+                                       Foreground="{StaticResource SubtleTextBrush}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

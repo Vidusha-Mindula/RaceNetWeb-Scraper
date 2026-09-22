@@ -48,6 +48,15 @@ public sealed partial class MeetingRow : ObservableObject
 
     partial void OnRacesProcessedChanged(int value) => OnPropertyChanged(nameof(ProgressPercent));
 
+    /// <summary>Set once this meeting's S3 upload has actually run — lets
+    /// <see cref="MainViewModel"/>'s race-scrape loop tell "already uploaded" apart from "not due
+    /// yet", so resuming after Stop (see MainViewModel.ContinueAsync) never uploads the same
+    /// meeting twice.</summary>
+    public bool UploadedToS3 { get; set; }
+
+    /// <summary>Same idea as <see cref="UploadedToS3"/>, for the local JSON export step.</summary>
+    public bool ExportedLocally { get; set; }
+
     public static MeetingRow From(Discipline discipline, string group, Meeting meeting, DateOnly date) => new()
     {
         DisciplineEnum = discipline,

@@ -27,6 +27,20 @@ public sealed partial class MainViewModel : ObservableObject
     private CancellationTokenSource? _cts;
     private string? _pendingNoticeId;
 
+    /// <summary>The exact request (disciplines/dates/filters) behind the run currently sitting in
+    /// <see cref="Meetings"/> — remembered so <see cref="ContinueAsync"/> can re-enter
+    /// <see cref="ScrapeDatesAsync"/> with the same parameters after a Stop, rather than needing
+    /// the user to re-select everything.</summary>
+    private ScrapeRequest? _lastScrapeRequest;
+
+    /// <summary>True only right after a run ends via Stop (not a clean finish or a hard failure) —
+    /// gates <see cref="ContinueCommand"/> so it's only ever offered when there's actually
+    /// unfinished work left over from <see cref="_lastScrapeRequest"/>.</summary>
+    private bool _canResume;
+
+    private sealed record ScrapeRequest(
+        List<Discipline> Disciplines, List<DateOnly> Dates, string CountryFilter, string CourseFilter, bool ForceUploadToS3);
+
     /// <summary>Ticks on the UI thread (via WPF's Dispatcher) so its handler can safely touch
     /// <see cref="Meetings"/> and other bound properties directly, the same as a button click —
     /// a background <see cref="System.Threading.Timer"/> would require manual Dispatcher.Invoke
@@ -204,6 +218,98 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool isUpdateDownloadIndeterminate;
 
+    // --- "Switch version" (see the Browser tab) — installs any past release on demand, not just
+    // whatever CheckAsync surfaces automatically, so this is also how a downgrade is done: pick
+    // an older version from the list and click Install, same silent install/relaunch flow as the
+    // update banner's "Update Now". ---
+
+    public ObservableCollection<ReleaseInfo> AvailableReleases { get; } = new();
+
+    [ObservableProperty]
+    private ReleaseInfo? selectedRelease;
+
+    [ObservableProperty]
+    private bool isLoadingReleases;
+
+    [ObservableProperty]
+    private bool isInstallingVersion;
+
+    [ObservableProperty]
+    private string versionPickerStatus = "";
+
+    partial void OnSelectedReleaseChanged(ReleaseInfo? value) => InstallSelectedVersionCommand.NotifyCanExecuteChanged();
+
+    partial void OnIsLoadingReleasesChanged(bool value) => LoadReleasesCommand.NotifyCanExecuteChanged();
+
+    partial void OnIsInstallingVersionChanged(bool value)
+    {
+        LoadReleasesCommand.NotifyCanExecuteChanged();
+        InstallSelectedVersionCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Populates <see cref="AvailableReleases"/> from GitHub — not done automatically at
+    /// startup (unlike the newer-version banner's own background check) since this is an
+    /// on-demand "show me the options" action, not something worth an API call every launch.</summary>
+    [RelayCommand(CanExecute = nameof(CanLoadReleases))]
+    private async Task LoadReleasesAsync()
+    {
+        IsLoadingReleases = true;
+        VersionPickerStatus = "Checking available versions...";
+
+        var releases = await UpdateChecker.ListReleasesAsync();
+        AvailableReleases.Clear();
+        foreach (var release in releases) AvailableReleases.Add(release);
+
+        SelectedRelease = AvailableReleases.FirstOrDefault(r => r.DisplayText != $"v{AppVersion}") ?? AvailableReleases.FirstOrDefault();
+        VersionPickerStatus = AvailableReleases.Count == 0
+            ? "Couldn't load releases from GitHub — check your connection, or the repo isn't configured yet."
+            : $"{AvailableReleases.Count} version(s) available. Currently running v{AppVersion}.";
+
+        IsLoadingReleases = false;
+    }
+
+    private bool CanLoadReleases() => !IsLoadingReleases && !IsInstallingVersion;
+
+    /// <summary>Downloads and silently installs <see cref="SelectedRelease"/> — identical flow to
+    /// <see cref="UpdateNowAsync"/>, just against whichever release the user picked instead of
+    /// always the newest. Inno Setup's own [Files] entries use "ignoreversion" (see
+    /// installer/RaceNetScraper.iss), so installing an older build over a newer one really does
+    /// downgrade the files on disk rather than being silently skipped.</summary>
+    [RelayCommand(CanExecute = nameof(CanInstallSelectedVersion))]
+    private async Task InstallSelectedVersionAsync()
+    {
+        if (SelectedRelease is not { } release) return;
+
+        try
+        {
+            IsInstallingVersion = true;
+            VersionPickerStatus = $"Downloading {release.DisplayText}... 0%";
+
+            IProgress<double> downloadProgress = new Progress<double>(pct =>
+            {
+                VersionPickerStatus = pct < 0
+                    ? $"Downloading {release.DisplayText}..."
+                    : $"Downloading {release.DisplayText}... {pct:0}%";
+            });
+
+            var installerPath = await UpdateChecker.DownloadInstallerAsync(release.DownloadUrl, downloadProgress);
+
+            VersionPickerStatus = "Launching installer...";
+            UpdateChecker.LaunchInstaller(installerPath);
+
+            // Same reasoning as UpdateNowAsync: the installer needs this process's files
+            // unlocked, so closing right after launching it is what makes that possible.
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            VersionPickerStatus = $"Install failed: {ex.Message}";
+            IsInstallingVersion = false;
+        }
+    }
+
+    private bool CanInstallSelectedVersion() => SelectedRelease is not null && !IsInstallingVersion;
+
     /// <summary>True once a developer notice (see DeveloperNoticeChecker) the user hasn't already
     /// dismissed has been found — drives the "Developer Note" banner's visibility.</summary>
     [ObservableProperty]
@@ -217,13 +323,59 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<MeetingRow> Meetings { get; } = new();
 
+    /// <summary>Read once from the running build's own assembly metadata (see UpdateChecker,
+    /// which already reads this to compare against GitHub releases) — the single source both the
+    /// title bar and header subtitle display from, so they can never show a different version than
+    /// what the update check itself is comparing against.</summary>
+    public string AppVersion => UpdateChecker.CurrentVersionText;
+
+    public string WindowTitle => $"Racenet Meetings Scraper v{AppVersion}  ·  by VM";
+
     partial void OnIsBusyChanged(bool value)
     {
         ScrapeCommand.NotifyCanExecuteChanged();
         ExportJsonCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         ClearResultsCommand.NotifyCanExecuteChanged();
+        ContinueCommand.NotifyCanExecuteChanged();
     }
+
+    /// <summary>Moves a meeting higher in <see cref="Meetings"/> — since the race-scrape loop in
+    /// <see cref="ScrapeDatesAsync"/> always picks whichever unfinished meeting currently sits
+    /// highest in this same list, reordering it here (before or even while a scrape is running)
+    /// directly changes what gets scraped next.</summary>
+    [RelayCommand]
+    private void MoveMeetingUp(MeetingRow? row)
+    {
+        if (row is null) return;
+        var index = Meetings.IndexOf(row);
+        if (index <= 0) return;
+        Meetings.Move(index, index - 1);
+    }
+
+    [RelayCommand]
+    private void MoveMeetingDown(MeetingRow? row)
+    {
+        if (row is null) return;
+        var index = Meetings.IndexOf(row);
+        if (index < 0 || index >= Meetings.Count - 1) return;
+        Meetings.Move(index, index + 1);
+    }
+
+    /// <summary>Resumes the scrape stopped via <see cref="Stop"/> — re-enters
+    /// <see cref="ScrapeDatesAsync"/> with the same request, which skips every date/discipline
+    /// combo already fetched and every race already recorded, so only what didn't finish gets
+    /// (re)done.</summary>
+    [RelayCommand(CanExecute = nameof(CanContinue))]
+    private async Task ContinueAsync()
+    {
+        if (_lastScrapeRequest is not { } request) return;
+        await ScrapeDatesAsync(
+            request.Disciplines, request.Dates, request.CountryFilter, request.CourseFilter,
+            request.ForceUploadToS3, isResume: true);
+    }
+
+    private bool CanContinue() => !IsBusy && _canResume && _lastScrapeRequest is not null;
 
     partial void OnIsStoppingChanged(bool value) => StopCommand.NotifyCanExecuteChanged();
 
@@ -252,6 +404,9 @@ public sealed partial class MainViewModel : ObservableObject
         Meetings.Clear();
         _lastResults.Clear();
         _raceDetails.Clear();
+        _lastScrapeRequest = null;
+        _canResume = false;
+        ContinueCommand.NotifyCanExecuteChanged();
         StatusText = "Ready.";
     }
 
@@ -544,9 +699,13 @@ public sealed partial class MainViewModel : ObservableObject
     /// <param name="forceUploadToS3">Auto-scrape always passes true here — its whole point is
     /// unattended delivery into the bucket for TroyenRaceIngestor, so it uploads regardless of
     /// whether the manual Scraper tab's "Also upload to S3" checkbox happens to be on.</param>
+    /// <param name="isResume">True when called from <see cref="ContinueAsync"/> after a Stop —
+    /// skips the usual "clear everything and start fresh" step, so meetings/races already
+    /// captured (and this run's original request, in <see cref="_lastScrapeRequest"/>) survive
+    /// into this call instead of being wiped.</param>
     private async Task ScrapeDatesAsync(
         List<Discipline> disciplines, List<DateOnly> dates, string countryFilter, string courseFilter,
-        bool forceUploadToS3 = false)
+        bool forceUploadToS3 = false, bool isResume = false)
     {
         var browser = SelectedScraperBrowser;
         if (!ScraperBrowserAvailability.IsInstalled(browser))
@@ -560,10 +719,15 @@ public sealed partial class MainViewModel : ObservableObject
 
         IsBusy = true;
         IsStopping = false;
-        Meetings.Clear();
-        _lastResults.Clear();
-        _raceDetails.Clear();
-        StatusText = "Starting browser...";
+        if (!isResume)
+        {
+            Meetings.Clear();
+            _lastResults.Clear();
+            _raceDetails.Clear();
+            _lastScrapeRequest = new ScrapeRequest(disciplines, dates, countryFilter, courseFilter, forceUploadToS3);
+        }
+        _canResume = false;
+        StatusText = isResume ? "Resuming..." : "Starting browser...";
 
         IProgress<string> progress = new Progress<string>(msg => StatusText = msg);
         var disciplineFailures = new List<string>();
@@ -575,16 +739,32 @@ public sealed partial class MainViewModel : ObservableObject
         var totalS3UploadedCount = 0;
         var totalS3FailedCount = 0;
 
+        // A meeting counts as fully done once every one of its races has recorded detail AND
+        // (whichever of these are actually enabled) its S3 upload/local export has run —
+        // evaluated live off current checkbox state and _raceDetails/row flags rather than any
+        // separate "done" list, so it works identically whether this is a fresh run or a resume.
+        bool RowNeedsUploadOrExport(MeetingRow r) =>
+            ((UploadToS3 || forceUploadToS3) && !r.UploadedToS3) ||
+            (AutoExportAfterScrape && !string.IsNullOrWhiteSpace(DownloadFolder) && !r.ExportedLocally);
+        bool RowIsFullyDone(MeetingRow r) =>
+            r.Meeting.Events.All(e => e.Id is not null && _raceDetails.ContainsKey(e.Id)) && !RowNeedsUploadOrExport(r);
+
         try
         {
             await using IRaceNetScraperService service = new RaceNetScraperService();
             await service.InitializeAsync(new ScraperOptions { Headless = Headless, Browser = browser }, token);
 
+            // Phase 1 — list every requested date/discipline combo's meetings up front (just
+            // meeting-list requests, no per-race scraping yet), so the whole list is visible —
+            // and reorderable via the grid's Priority Up/Down buttons — before Phase 2 below
+            // commits to any particular scrape order. A combo already fetched on an earlier
+            // attempt (isResume, tracked via _lastResults) is skipped rather than re-fetched.
             foreach (var date in dates)
             foreach (var discipline in disciplines)
             {
                 token.ThrowIfCancellationRequested();
-                var rows = new List<MeetingRow>();
+                if (isResume && _lastResults.ContainsKey((date, discipline))) continue;
+
                 try
                 {
                     var result = await VpnRotator.RunWithRotationOnBlockAsync(
@@ -606,17 +786,17 @@ public sealed partial class MainViewModel : ObservableObject
 
                     _lastResults[(date, discipline)] = result;
 
+                    var addedAny = false;
                     foreach (var group in result.MeetingsGrouped)
                     {
                         foreach (var meeting in group.Meetings)
                         {
-                            var row = MeetingRow.From(discipline, group.Group ?? "", meeting, date);
-                            rows.Add(row);
-                            Meetings.Add(row);
+                            Meetings.Add(MeetingRow.From(discipline, group.Group ?? "", meeting, date));
+                            addedAny = true;
                         }
                     }
 
-                    if (rows.Count == 0 && (countryFilter.Length > 0 || courseFilter.Length > 0))
+                    if (!addedAny && (countryFilter.Length > 0 || courseFilter.Length > 0))
                     {
                         progress.Report($"[R-{discipline.Code()}] {date:yyyy-MM-dd}: No meetings matched the country/course filter.");
                     }
@@ -626,64 +806,80 @@ public sealed partial class MainViewModel : ObservableObject
                     var message = $"[R-{discipline.Code()}] {date:yyyy-MM-dd}: Failed: {ex.Message}";
                     disciplineFailures.Add(message);
                     StatusText = message;
-                    continue;
+                }
+            }
+
+            // Phase 2 — race every meeting's full detail. Always re-picks whichever unfinished
+            // meeting currently sits highest in Meetings (rather than snapshotting an order up
+            // front), so the Priority Up/Down buttons have a real, live effect on what gets
+            // scraped next — including while this phase is already running.
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                var row = Meetings.FirstOrDefault(r => !RowIsFullyDone(r));
+                if (row is null) break;
+
+                var discipline = row.DisciplineEnum;
+
+                // Only races this meeting doesn't already have detail for — on a fresh run
+                // that's all of them, on a resume it's whatever didn't finish (or was never
+                // reached) before the previous Stop. Scraped one race at a time, deliberately
+                // NOT concurrently — each race is a full page navigation (see
+                // RaceNetScraperService's class remarks), and running several at once would mean
+                // juggling multiple pages on the one shared browser context this service keeps
+                // for its whole session.
+                foreach (var raceEvent in row.Meeting.Events)
+                {
+                    if (raceEvent.Id is not null && _raceDetails.ContainsKey(raceEvent.Id)) continue;
+
+                    token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var detail = await VpnRotator.RunWithRotationOnBlockAsync(
+                            () => service.ScrapeRaceAsync(discipline, row.Meeting, raceEvent, progress, token),
+                            progress, token);
+                        if (detail.RaceId is not null) _raceDetails[detail.RaceId] = detail;
+                        row.RacesWithDetail++;
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        progress.Report(
+                            $"[R-{discipline.Code()}] Race {raceEvent.EventNumber} ({row.MeetingName}) failed, skipping: {ex.Message}");
+                    }
+
+                    row.RacesProcessed++;
                 }
 
-                foreach (var row in rows)
+                // Uploaded to S3 independently of the local folder export below — so S3
+                // delivery doesn't depend on a download folder being configured at all.
+                // forceUploadToS3 is what lets auto-scrape always push to the bucket
+                // regardless of the manual "Also upload to S3" checkbox's current state.
+                // Guarded by UploadedToS3 so a resumed run never uploads the same meeting twice.
+                if ((UploadToS3 || forceUploadToS3) && !row.UploadedToS3)
                 {
-                    token.ThrowIfCancellationRequested();
+                    var (uploaded, failed) = await UploadMeetingToS3Async(discipline, row.Group, row.Meeting);
+                    totalS3UploadedCount += uploaded;
+                    totalS3FailedCount += failed;
+                    row.UploadedToS3 = true;
+                    progress.Report(
+                        $"[R-{discipline.Code()}] Uploaded {row.MeetingName} to S3: {uploaded} file(s)." +
+                        (failed > 0 ? $" {failed} failed." : ""));
+                }
 
-                    // Scraped one race at a time, deliberately NOT concurrently — each race is a
-                    // full page navigation (see RaceNetScraperService's class remarks), and running
-                    // several at once would mean juggling multiple pages on the one shared browser
-                    // context this service keeps for its whole session.
-                    foreach (var raceEvent in row.Meeting.Events)
-                    {
-                        token.ThrowIfCancellationRequested();
-                        try
-                        {
-                            var detail = await VpnRotator.RunWithRotationOnBlockAsync(
-                                () => service.ScrapeRaceAsync(discipline, row.Meeting, raceEvent, progress, token),
-                                progress, token);
-                            if (detail.RaceId is not null) _raceDetails[detail.RaceId] = detail;
-                            row.RacesWithDetail++;
-                        }
-                        catch (Exception ex) when (ex is not OperationCanceledException)
-                        {
-                            progress.Report(
-                                $"[R-{discipline.Code()}] Race {raceEvent.EventNumber} ({row.MeetingName}) failed, skipping: {ex.Message}");
-                        }
-
-                        row.RacesProcessed++;
-                    }
-
-                    // Uploaded to S3 independently of the local folder export below — so S3
-                    // delivery doesn't depend on a download folder being configured at all.
-                    // forceUploadToS3 is what lets auto-scrape always push to the bucket
-                    // regardless of the manual "Also upload to S3" checkbox's current state.
-                    if (UploadToS3 || forceUploadToS3)
-                    {
-                        var (uploaded, failed) = await UploadMeetingToS3Async(discipline, row.Group, row.Meeting);
-                        totalS3UploadedCount += uploaded;
-                        totalS3FailedCount += failed;
-                        progress.Report(
-                            $"[R-{discipline.Code()}] Uploaded {row.MeetingName} to S3: {uploaded} file(s)." +
-                            (failed > 0 ? $" {failed} failed." : ""));
-                    }
-
-                    // Export this meeting right away instead of waiting for every other
-                    // meeting/discipline/date in this run to finish scraping too — so a long
-                    // multi-meeting scrape has already saved each meeting as soon as it's ready,
-                    // rather than losing everything scraped so far if the run is interrupted or
-                    // fails partway through. S3 upload is handled above, not here — passing
-                    // uploadToS3: false avoids uploading the same file twice.
-                    if (AutoExportAfterScrape && !string.IsNullOrWhiteSpace(DownloadFolder))
-                    {
-                        var exportResult = await ExportMeetingAsync(discipline, row.Group, row.Meeting, DownloadFolder, uploadToS3: false);
-                        totalFileCount += exportResult.FileCount;
-                        totalMeetingFolderCount += exportResult.MeetingFolderCount;
-                        progress.Report($"[R-{discipline.Code()}] Exported {row.MeetingName}: {exportResult.FileCount} file(s).");
-                    }
+                // Export this meeting right away instead of waiting for every other
+                // meeting/discipline/date in this run to finish scraping too — so a long
+                // multi-meeting scrape has already saved each meeting as soon as it's ready,
+                // rather than losing everything scraped so far if the run is interrupted or
+                // fails partway through. S3 upload is handled above, not here — passing
+                // uploadToS3: false avoids uploading the same file twice. Guarded by
+                // ExportedLocally so a resumed run never exports the same meeting twice.
+                if (AutoExportAfterScrape && !string.IsNullOrWhiteSpace(DownloadFolder) && !row.ExportedLocally)
+                {
+                    var exportResult = await ExportMeetingAsync(discipline, row.Group, row.Meeting, DownloadFolder, uploadToS3: false);
+                    totalFileCount += exportResult.FileCount;
+                    totalMeetingFolderCount += exportResult.MeetingFolderCount;
+                    row.ExportedLocally = true;
+                    progress.Report($"[R-{discipline.Code()}] Exported {row.MeetingName}: {exportResult.FileCount} file(s).");
                 }
             }
 
@@ -729,8 +925,10 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
+            _canResume = true;
             StatusText = $"Stopped by user. {Meetings.Count} meeting(s) loaded, " +
-                          $"{_raceDetails.Count} race(s) with full runner detail before stopping.";
+                          $"{_raceDetails.Count} race(s) with full runner detail before stopping. " +
+                          "Click Continue to pick up where it left off.";
         }
         catch (Exception ex)
         {

@@ -20,6 +20,16 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- Falls back to the repo-root VERSION file so a plain "dotnet build"/"dotnet run" (or F5 in
+       an IDE) shows the real version in the title bar too, not just an installer build — see
+       UpdateChecker.CurrentVersionText, which reads this same assembly version at runtime.
+       installer/build-racenet-installer.ps1's own "-p:Version=$Version" still wins over this: an
+       MSBuild property passed on the command line is a global property, which a plain
+       <Version> assignment here can never override. -->
+  <PropertyGroup Condition="'$(Version)' == '' And Exists('$(MSBuildThisFileDirectory)..\..\VERSION')">
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</Version>
+  </PropertyGroup>
+
   <ItemGroup>
     <Resource Include="app.ico" />
     <Resource Include="Assets\Horse\*.png" />
