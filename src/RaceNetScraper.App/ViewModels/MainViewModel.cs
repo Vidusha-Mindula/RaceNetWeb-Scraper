@@ -587,7 +587,9 @@ public sealed partial class MainViewModel : ObservableObject
                 var rows = new List<MeetingRow>();
                 try
                 {
-                    var result = await service.ScrapeMeetingsAsync(discipline, date, progress: progress, cancellationToken: token);
+                    var result = await VpnRotator.RunWithRotationOnBlockAsync(
+                        () => service.ScrapeMeetingsAsync(discipline, date, progress: progress, cancellationToken: token),
+                        progress, token);
 
                     // Apply the country/course filters right away, so nothing downstream
                     // (grid, race-detail scraping, export) ever sees or processes a meeting
@@ -640,7 +642,9 @@ public sealed partial class MainViewModel : ObservableObject
                         token.ThrowIfCancellationRequested();
                         try
                         {
-                            var detail = await service.ScrapeRaceAsync(discipline, row.Meeting, raceEvent, progress, token);
+                            var detail = await VpnRotator.RunWithRotationOnBlockAsync(
+                                () => service.ScrapeRaceAsync(discipline, row.Meeting, raceEvent, progress, token),
+                                progress, token);
                             if (detail.RaceId is not null) _raceDetails[detail.RaceId] = detail;
                             row.RacesWithDetail++;
                         }
