@@ -119,9 +119,36 @@
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,12" VerticalAlignment="Center">
-                                <TextBlock Text="Country (ISO2)" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
-                                <TextBox Text="{Binding CountryCodeFilter, UpdateSourceTrigger=PropertyChanged}" Width="64" Margin="0,0,24,0"
-                                         ToolTip="Optional. Only scrape meetings in this country, e.g. AU, NZ, US, GB. Leave blank for all countries." />
+                                <TextBlock Text="Country" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                                <ToggleButton x:Name="CountryPickerToggle" Content="{Binding CountryFilterSummary}" Width="150" Margin="0,0,24,0"
+                                              HorizontalContentAlignment="Left" Padding="8,4"
+                                              ToolTip="Pick one or more countries to scrape. None checked = all countries." />
+                                <Popup PlacementTarget="{Binding ElementName=CountryPickerToggle}" IsOpen="{Binding IsChecked, ElementName=CountryPickerToggle}"
+                                       StaysOpen="False" AllowsTransparency="True" Placement="Bottom" PopupAnimation="Fade">
+                                    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1" CornerRadius="6" Padding="12">
+                                        <StackPanel Width="240">
+                                            <ItemsControl ItemsSource="{Binding CountryOptions}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Width="110" Margin="0,3" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <TextBlock Text="Other (ISO2)" FontSize="11" Foreground="{StaticResource SubtleTextBrush}" Margin="0,10,0,4" />
+                                            <TextBox Text="{Binding ManualCountryCodes, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="Not on the list above? Type ISO2 code(s) here, comma-separated, e.g. IN, SE. Combines with whatever's checked above." />
+
+                                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Command="{Binding ClearCountrySelectionCommand}"
+                                                    HorizontalAlignment="Left" Width="80" Margin="0,10,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
 
                                 <TextBlock Text="Course name" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
                                 <TextBox Text="{Binding CourseNameFilter, UpdateSourceTrigger=PropertyChanged}" Width="170" Margin="0,0,24,0"
@@ -134,6 +161,10 @@
                                 <Button Content="Export JSON..." Width="140" Style="{StaticResource SecondaryButton}" Command="{Binding ExportJsonCommand}"
                                         ToolTip="Saves one folder per meeting, each containing that meeting's file plus a DataDump file for every scraped race." />
                             </StackPanel>
+
+                            <TextBlock Text="{Binding SelectedCountriesDetail, StringFormat='Countries: {0}'}"
+                                       Visibility="{Binding HasCountriesSelected, Converter={StaticResource BoolToVisibility}}"
+                                       FontSize="11" Foreground="{StaticResource SubtleTextBrush}" TextWrapping="Wrap" Margin="0,0,0,12" />
 
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Download folder" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
@@ -235,35 +266,99 @@
                     <!-- Fires ScrapeDatesAsync automatically at each listed time-of-day, for as
                          long as this app stays open (see MainViewModel's DispatcherTimer).
                          Independent of the Scraper tab's manual controls — its own
-                         day/discipline selection, no country/course filter. -->
+                         day/discipline/country selection. -->
                     <Border Grid.Row="0" Background="{StaticResource PanelBrush}" CornerRadius="10" BorderBrush="{StaticResource BorderBrush2}"
                             BorderThickness="1" Padding="16,14" Margin="0,4,0,14">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14" VerticalAlignment="Center">
-                                <CheckBox Content="Enabled" IsChecked="{Binding AutoScrapeEnabled}" Margin="0,0,24,0" VerticalAlignment="Center"
-                                          ToolTip="While checked, scrapes automatically at each time below, for as long as this app stays open. If this app is installed on more than one PC, only enable this on one of them — otherwise every PC will scrape and upload at the same scheduled times." />
-                                <CheckBox Content="Today" IsChecked="{Binding AutoScrapeIncludeToday}" Margin="0,0,18,0" VerticalAlignment="Center" />
-                                <CheckBox Content="Tomorrow" IsChecked="{Binding AutoScrapeIncludeTomorrow}" Margin="0,0,18,0" VerticalAlignment="Center" />
-                                <CheckBox Content="Day after tomorrow" IsChecked="{Binding AutoScrapeIncludeDayAfterTomorrow}" VerticalAlignment="Center" />
-                            </StackPanel>
+                            <CheckBox Content="Enabled" IsChecked="{Binding AutoScrapeEnabled}" Margin="0,0,0,14" VerticalAlignment="Center"
+                                      ToolTip="While checked, scrapes automatically at each scheduled run below, for as long as this app stays open. If this app is installed on more than one PC, only enable this on one of them — otherwise every PC will scrape and upload at the same scheduled times." />
 
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4" VerticalAlignment="Center">
-                                <CheckBox Content="Horses (T)" IsChecked="{Binding AutoScrapeHorses}" Margin="0,0,18,0" VerticalAlignment="Center" />
-                                <CheckBox Content="Greyhounds (G)" IsChecked="{Binding AutoScrapeGreyhounds}" Margin="0,0,18,0" VerticalAlignment="Center" />
-                                <CheckBox Content="Harness (H)" IsChecked="{Binding AutoScrapeHarness}" Margin="0,0,24,0" VerticalAlignment="Center" />
+                            <!-- Each card below is one scheduled time. Australia and International
+                                 are independent within it — either can be switched off, and each
+                                 has its own day(s)/discipline(s) — so e.g. a single 13:50 card can
+                                 scrape Australia-only Harness for Today AND International Harness
+                                 for Today, both firing back-to-back the moment 13:50 arrives.
+                                 Collapsible so a long list of scheduled runs doesn't push the live
+                                 progress grid below out of view. -->
+                            <Expander Header="Scheduled runs" FontWeight="SemiBold" IsExpanded="False" Margin="0,0,0,14">
+                            <StackPanel>
+                            <ItemsControl x:Name="AutoScrapeSlotsList" ItemsSource="{Binding AutoScrapeSlots}" Margin="0,0,0,4">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource ControlBrush}" BorderBrush="{StaticResource BorderBrush2}"
+                                                BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
+                                                    <TextBlock Text="Time" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                                                    <TextBox Text="{Binding Time, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="36" Padding="8,4" Margin="0,0,10,0"
+                                                             FontSize="14" VerticalContentAlignment="Center" ToolTip="24h time, e.g. 06:00 — Australia and International below fire together at this time." />
+                                                    <Button Content="Remove" Style="{StaticResource SecondaryButton}" Width="80" Height="36" Padding="0"
+                                                            Command="{Binding DataContext.RemoveAutoScrapeSlotCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" />
+                                                </StackPanel>
 
-                                <TextBlock Text="Times (24h)" VerticalAlignment="Center" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
-                                <TextBox Text="{Binding AutoScrapeTimesOfDay, UpdateSourceTrigger=PropertyChanged}" Width="180"
-                                         ToolTip="Comma-separated 24h times, e.g. 06:00,18:00 — fires once per listed time each day." />
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="16" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Australia column -->
+                                                    <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush2}"
+                                                            BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                                        <StackPanel DataContext="{Binding Australia}">
+                                                            <CheckBox Content="Australia" IsChecked="{Binding Enabled}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                                            <StackPanel IsEnabled="{Binding Enabled}">
+                                                                <WrapPanel Margin="0,0,0,6">
+                                                                    <CheckBox Content="Today" IsChecked="{Binding IncludeToday}" Margin="0,0,14,4" />
+                                                                    <CheckBox Content="Tomorrow" IsChecked="{Binding IncludeTomorrow}" Margin="0,0,14,4" />
+                                                                    <CheckBox Content="Day after tomorrow" IsChecked="{Binding IncludeDayAfterTomorrow}" Margin="0,0,0,4" />
+                                                                </WrapPanel>
+                                                                <WrapPanel>
+                                                                    <CheckBox Content="Horses (T)" IsChecked="{Binding Horses}" Margin="0,0,14,0" />
+                                                                    <CheckBox Content="Greyhounds (G)" IsChecked="{Binding Greyhounds}" Margin="0,0,14,0" />
+                                                                    <CheckBox Content="Harness (H)" IsChecked="{Binding Harness}" />
+                                                                </WrapPanel>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- International column -->
+                                                    <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush2}"
+                                                            BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                                        <StackPanel DataContext="{Binding International}">
+                                                            <CheckBox Content="International" IsChecked="{Binding Enabled}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                                            <StackPanel IsEnabled="{Binding Enabled}">
+                                                                <WrapPanel Margin="0,0,0,6">
+                                                                    <CheckBox Content="Today" IsChecked="{Binding IncludeToday}" Margin="0,0,14,4" />
+                                                                    <CheckBox Content="Tomorrow" IsChecked="{Binding IncludeTomorrow}" Margin="0,0,14,4" />
+                                                                    <CheckBox Content="Day after tomorrow" IsChecked="{Binding IncludeDayAfterTomorrow}" Margin="0,0,0,4" />
+                                                                </WrapPanel>
+                                                                <WrapPanel>
+                                                                    <CheckBox Content="Horses (T)" IsChecked="{Binding Horses}" Margin="0,0,14,0" />
+                                                                    <CheckBox Content="Greyhounds (G)" IsChecked="{Binding Greyhounds}" Margin="0,0,14,0" />
+                                                                    <CheckBox Content="Harness (H)" IsChecked="{Binding Harness}" />
+                                                                </WrapPanel>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="+ Add scheduled run" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"
+                                    Command="{Binding AddAutoScrapeSlotCommand}" />
                             </StackPanel>
-                            <TextBlock Margin="0,0,0,14" FontSize="11" Foreground="{StaticResource SubtleTextBrush}"
-                                       Text="Comma-separated — add as many times as you want (e.g. &quot;06:00,18:00&quot; for twice a day)." />
+                            </Expander>
 
                             <TextBlock Text="{Binding AutoScrapeLastRunSummary, StringFormat='Last run: {0}'}" Margin="0,0,0,0"
                                        Foreground="{StaticResource SubtleTextBrush}" FontSize="11" TextWrapping="Wrap" />
 
                             <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource SubtleTextBrush}"
-                                       Text="Scrapes automatically at each listed time (local time), for the selected day(s)/discipline(s) above, across every country and course — independent of the manual controls on the Scraper tab. Always uploads to S3 regardless of the Scraper tab's 'Also upload to S3' checkbox. Live progress below is the same underlying run as a manual scrape — this tab just shows it too." />
+                                       Text="Fires automatically (local time) at each scheduled run's own time — Australia and International (whichever are switched on) run back-to-back at that time, each with its own day(s)/discipline(s), across every course — independent of the manual controls on the Scraper tab. Live progress below is the same underlying run as a manual scrape — this tab just shows it too." />
                         </StackPanel>
                     </Border>
 

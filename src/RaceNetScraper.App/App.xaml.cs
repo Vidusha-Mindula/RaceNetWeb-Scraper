@@ -19,6 +19,21 @@ public partial class App : System.Windows.Application
         EnsureStartupRegistered();
     }
 
+    /// <summary>Closes the RabbitMQ connection (if one was opened during this session) on exit. The
+    /// publisher bounds its own close with a short timeout, so blocking here can never hang shutdown
+    /// on an unreachable broker. Best-effort — a failure to close cleanly must not stop the app
+    /// from exiting.</summary>
+    protected override void OnExit(ExitEventArgs e)
+    {
+        if (MainWindow?.DataContext is ViewModels.MainViewModel vm)
+        {
+            try { vm.DisposeEventPublisherAsync().AsTask().GetAwaiter().GetResult(); }
+            catch { /* never let shutdown fail over closing a message-broker connection */ }
+        }
+
+        base.OnExit(e);
+    }
+
     /// <summary>Registers this exe to launch at Windows logon via the per-user Run key, so
     /// auto-scrape (see MainViewModel's DispatcherTimer, opt-in via AutoScrapeEnabled) actually
     /// fires at its configured times without anyone having to remember to open the app first. Runs

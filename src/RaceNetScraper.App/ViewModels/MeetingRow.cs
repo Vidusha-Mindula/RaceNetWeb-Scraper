@@ -43,8 +43,11 @@ public sealed partial class MeetingRow : ObservableObject
     private int racesProcessed;
 
     /// <summary>0-100. RacesProcessed/RaceCount — a meeting with no races reads as fully done
-    /// rather than 0%.</summary>
-    public int ProgressPercent => RaceCount == 0 ? 100 : (int)Math.Round(100.0 * RacesProcessed / RaceCount);
+    /// rather than 0%. Capped at 100: a race that needs more than one attempt counts toward
+    /// RacesProcessed on every attempt (see MainViewModel's race loop) so the bar keeps visibly
+    /// moving while it retries, which can push the raw ratio past 100% for a meeting with
+    /// retried races.</summary>
+    public int ProgressPercent => RaceCount == 0 ? 100 : Math.Min(100, (int)Math.Round(100.0 * RacesProcessed / RaceCount));
 
     partial void OnRacesProcessedChanged(int value) => OnPropertyChanged(nameof(ProgressPercent));
 
@@ -56,6 +59,15 @@ public sealed partial class MeetingRow : ObservableObject
 
     /// <summary>Same idea as <see cref="UploadedToS3"/>, for the local JSON export step.</summary>
     public bool ExportedLocally { get; set; }
+
+    /// <summary>Same idea as <see cref="UploadedToS3"/>, for the RabbitMQ "meeting.scraped"
+    /// event — so a resumed run never re-publishes it.</summary>
+    public bool EventPublished { get; set; }
+
+    /// <summary>This meeting's export file name, generated once and kept, so the S3 upload and
+    /// the RabbitMQ event reference the same name even if they end up in different passes
+    /// (Stop between the two, then resume).</summary>
+    public string? MeetingFileName { get; set; }
 
     public static MeetingRow From(Discipline discipline, string group, Meeting meeting, DateOnly date) => new()
     {
