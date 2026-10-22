@@ -1,0 +1,5 @@
+{
+  "id": "v2.0.0",
+  "title": "RaceNet Scraper v2.0.0",
+  "message": "v2.0.0 is out: Auto Scrape scheduling with RabbitMQ meeting-scraped events, plus major scraper reliability fixes — crashed-page recovery, correct race data across Horses/Greyhounds/Harness after Racenet's latest site changes, and full 5-run past form history for every discipline. — Vidusha"
+}
